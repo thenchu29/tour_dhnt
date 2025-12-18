@@ -8,8 +8,8 @@
     <include url="data/g8_scenes.xml" />
     <include url="data/ndn_scenes.xml" />
     <include url="data/loivao_scenes.xml" />
- <include url="skin/vtourskin_test.xml" />
-	<!-- <include url="skin/vtourskin_trang.xml" /> -->
+ <!--<include url="skin/vtourskin_test.xml" />-->
+	 <include url="skin/vtourskin_trang.xml" /> 
     <skin_settings maps="false"
 	               maps_type="openstreetmaps"
 	               maps_bing_api_key=""
