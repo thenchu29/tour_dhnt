@@ -58,7 +58,8 @@
 	               design_text_css="color:#FFFFFF; font-family:Arial;"
 	               design_text_txtshadow="1 1 4 0x000000 1.0"
 	               />
-	<data name="test"><![CDATA[
+	<data name="test">
+		<![CDATA[
 		 Chùa Phùng Khoang tên gọi theo địa danh của làng Phùng Khoang, tên chữ của chùa là “Thanh Xuân tự”, đây là một di tích cổ có từ trước năm 1623. Chùa nằm ngay sát cổng làng Phùng Khoang, trong khuôn viên rộng khoảng 5.880m2, thuộc xã Trung Văn, quận Nam Từ Liêm, thành phố Hà Nội.</br>
 		 Chùa Phùng Khoang là một trong những công trình kiến trúc có quy mô to lớn và theo ý nghĩa của người xưa nó có tầm quan trọng ảnh hưởng tới sự tín ngưỡng, tôn giáo tạo nên một không gian văn hóa đặc sắc. Trong đó, chùa Phùng Khoang là hợp thể của các đơn nguyên kiến trúc như: tam quan gác chuông, toà tam bảo, nhà thờ Tổ, nhà thờ Mẫu và tăng phòng.<br>
 		 Qua Tam quan gác chuông là một khoảng sân lát gạch đỏ dẫn đến bậc thềm của toà tam bảo năm gian, được xây dựng trên cơ sở nền tảng kiến trúc cổ, kết cấu kiểu chữ “đinh”.</br>
@@ -87,7 +88,7 @@
 	<!-- save the url path of this xml file (the url value will be adjusted during xml parsing) -->
 	<vtourskinxmlpath url="./" />
 
-	<!-- iPhone X safe-area support: use the horizontal safe-area only -->	
+	<!-- iPhone X safe-area support: use the horizontal safe-area only -->
 	<display safearea="h-only" />
 
 	<!-- mouse / touch / keyboard(button) control settings - https://krpano.com/docu/xml/#control -->
@@ -148,8 +149,8 @@
 
 	<!--style menu slide -->
 	<style name="menu_row_style" type="container" align="topleft" width="100%" height="25" bgcapture="true" />
-    <style name="indicator_style" type="container" align="left" x="0" width="5" height="25" bgcolor="0xFFFFFF" bgalpha="1" enabled="false" capture="false" />
-    <style name="menu_text" type="text" align="left" x="10" bg="false" css="font-family:Arial; font-size:14px; color:#ffffff;" enabled="false" capture="false" />
+	<style name="indicator_style" type="container" align="left" x="0" width="5" height="25" bgcolor="0xFFFFFF" bgalpha="1" enabled="false" capture="false" />
+	<style name="menu_text" type="text" align="left" x="10" bg="false" css="font-family:Arial; font-size:14px; color:#ffffff;" enabled="false" capture="false" />
 
 	<!-- skin_hotspotstyle - style for the hotspots -->
 	<style name="skin_hotspotstyle" url="vtourskin_hotspot.png" edge="top" distorted="true"
@@ -181,56 +182,219 @@
 		   rotate="-90"
 	       />
 
+	<!-- VR support - https://krpano.com/plugins/webvr/ -->
+	<include url="%VIEWER%/plugins/webvr.xml" />
+
+	<!-- overwrite some settings from the webvr.xml for the skin integration -->
+	<plugin name="webvr" keep="true" devices="webgl"
+	        url="calc:skin_settings.webvr == true ? '%VIEWER%/plugins/webvr.js' : null"
+	        onavailable="skin_webvr_onavailable();"
+	        onentervr="skin_showloading(false); webvr_onentervr(); skin_webvr_setup(); skin_reloadscene_webvr();"
+	        onexitvr="webvr_onexitvr(); skin_webvr_setup(); skin_reloadscene_webvr();"
+	        />
+
+	<!-- webvr button style (adjust to match skin style) -->
+	<style name="webvr_button_style"
+	       bgroundedge="calc:skin_settings.design_bgroundedge"
+	       bgcolor="get:skin_settings.design_bgcolor" bgalpha="get:skin_settings.design_bgalpha"
+	       bgborder="get:skin_settings.design_bgborder"
+	       bgshadow="get:skin_settings.design_bgshadow"
+	       css="calc:skin_settings.design_text_css + ' font-size:' + 20*webvr_setup_scale*webvr_button_scale + 'px;'"
+	       />
+
+	<!-- show a 'rotate the device' info when the mobile device is in portrait orientation in VR mode -->
+	<layer name="webvr_rotate_to_landscape_request" keep="true" vr="true" devices="mobile"
+	       url="rotate_device.png" scale="0.5"
+	       align="top" edge="center" y="28%"
+	       autoalpha="true" alpha="0.0"
+	       enabled="false"
+	       />
+
+	<events name="skin_webvr_and_gyro_events" keep="true"
+	        onxmlcomplete="skin_set_webvr_or_gyro_startup_view()"
+	        onresize.mobile="skin_webvr_act_as_gyro_in_portrait_mode();"
+	        onloadcomplete="delayedcall(0.5, if(webvr.isenabled AND scene.count GT 1 AND skin_settings.webvr_prev_next_hotspots, set(hotspot[skin_webvr_prev_scene].visible,true); set(hotspot[skin_webvr_next_scene].visible,true); ); );"
+	        onviewchange=""
+	        />
+
+	<action name="skin_vrdevice_intro" autorun="onstart" scope="local" devices="mobilevr">
+		<!-- show directly a big enterVR button -->
+		set(layer[webvr_enterbutton],
+		align=center, y=0, padding='10 20',
+		css=calc(skin_settings.design_text_css + ' font-size:20px;text-align:center;'),
+		html=calc((global.title ? '[i]'+global.title+'[/i][br]' : '') + '[span style="font-size:40px"]Enter VR[span]'),
+		);
+
+		<!-- add a button to show the normal skin and hide the enter vr button -->
+		addlayer('skin_hide_entervrbutton', button);
+		set(button, keep=true,
+		type=text,
+		parent=webvr_enterbutton,
+		align=bottom, edge=top, y=-60,
+		text='Continue normal viewing...',
+		bgalpha=0,
+		css='color:#FFFFFF; text-decoration:underline;',
+		onclick='removelayer(webvr_enterbutton); skin_showskin();'
+		);
+
+		<!-- hide the skin -->
+		skin_hideskin(instant);
+	</action>
+
+	<action name="skin_webvr_onavailable" scope="local">
+		if(device.mobilevr == false,
+		<!-- remove the enter vr button from the webvr.xml, use the one from the skin -->
+		removelayer(webvr_enterbutton);
+		);
+
+		<!-- update the skin buttons to add the skin vr button -->
+		skin_arrange_buttons();
+
+		<!-- call the original onavailable event from the webvr.xml -->
+		webvr_onavailable();
+	</action>
+
+	<action name="skin_set_webvr_or_gyro_startup_view">
+		if( (webvr.isenabled == true AND skin_settings.webvr_keeplookingdirection == false AND have3dtransition == false) OR (!webvr.isenabled AND plugin[skin_gyro].enabled == true AND skin_settings.gyro_keeplookingdirection == false AND have3dtransition == false),
+		skin_lookat( get(xml.view.hlookat) );
+		);
+	</action>
+
+	<action name="skin_webvr_setup">
+		if(webvr.isenabled,
+		copy(skin_settings.loadscene_flags_backup, skin_settings.loadscene_flags);
+		set(skin_settings.loadscene_flags, MERGE|KEEPVIEW|KEEPMOVING|NOPREVIEW);
+		skin_webvr_act_as_gyro_in_portrait_mode(true);
+		if(scene.count GT 1 AND skin_settings.webvr_prev_next_hotspots,
+		set(hotspot[skin_webvr_prev_scene].visible, true);
+		set(hotspot[skin_webvr_next_scene].visible, true);
+		set(events[skin_webvr_and_gyro_events].onviewchange, skin_webvr_menu_following());
+		);
+		,
+		if(skin_settings.loadscene_flags_backup !== null, copy(skin_settings.loadscene_flags, skin_settings.loadscene_flags_backup); );
+		if(layer[webvr_rotate_to_landscape_request], tween(layer[webvr_rotate_to_landscape_request].alpha, 0.0, 0.0); );
+		set(hotspot[skin_webvr_prev_scene].visible, false);
+		set(hotspot[skin_webvr_next_scene].visible, false);
+		set(events[skin_webvr_and_gyro_events].onviewchange, null);
+		);
+	</action>
+
+	<action name="skin_webvr_act_as_gyro_in_portrait_mode" scope="local" args="setupcall">
+		if(device.mobile AND webvr.isenabled,
+		div(aspect, stagewidth, stageheight);
+		if(aspect != global.skin_webvr_lastaspect OR setupcall == true,
+		copy(global.skin_webvr_lastaspect, aspect);
+		if(stagewidth GT stageheight,
+		<!-- landscape orientation - use stereo rendering and a direct/fast gyro sensor mode -->
+		set(display.stereo, true);
+		set(webvr.mobilevr_sensor_mode, 3);
+		webvr.update();
+		tween(layer[webvr_rotate_to_landscape_request].alpha, 0.0, 0.0);
+		,
+		<!-- portrait orientation - use normal rendering and a smoother/slower gyro sensor mode -->
+		set(display.stereo, false);
+		set(webvr.mobilevr_sensor_mode, 1);
+		webvr.update();
+		tween(layer[webvr_rotate_to_landscape_request].alpha, 1.0);
+		delayedcall(3.0, tween(layer[webvr_rotate_to_landscape_request].alpha, 0.0, 1.0); );
+		);
+		);
+		,
+		set(global.skin_webvr_lastaspect, 0);
+		);
+	</action>
+
+	<!-- VR scene switching hotspots -->
+	<style name="skin_webvr_menu_style" torigin="view" depth="1000" scale="0.625" distorted="true" ath="0" atv="45" alpha="0.5" />
+	<hotspot name="skin_webvr_prev_scene" keep="true" style="skin_base|skin_webvr_menu_style" crop="0|64|64|64"  ox="-88" onover="tween(scale,0.750);" onout="tween(scale,0.625);" vr_timeout="750" onclick="skin_nextscene_loop(-1);" visible="false" devices="webgl" />
+	<hotspot name="skin_webvr_next_scene" keep="true" style="skin_base|skin_webvr_menu_style" crop="64|64|64|64" ox="+88" onover="tween(scale,0.750);" onout="tween(scale,0.625);" vr_timeout="750" onclick="skin_nextscene_loop(+1);" visible="false" devices="webgl" />
+
+	<!-- floating/following VR hotspots -->
+	<action name="skin_webvr_menu_following" type="Javascript">
+		<![CDATA[			
+		var hs1 = krpano.get("hotspot[skin_webvr_prev_scene]");
+		var hs2 = krpano.get("hotspot[skin_webvr_next_scene]");
+		if(!hs1.hovering && !hs2.hovering)
+		{
+			var f = 0.01;	// following speed factor
+			var h = krpano.view.hlookat;
+			var v = krpano.view.vlookat;
+			var hsh = hs1.ath;
+			var hsv = hs1.atv;
+			h   = (h  -(h|0))   + (((h|0)  +360180)%360) - 180.0;
+			v   = (v  -(v|0))   + (((v|0)  +360180)%360) - 180.0;
+			hsh = (hsh-(hsh|0)) + (((hsh|0)+360180)%360) - 180.0;
+			var dh = h - hsh;
+			dh += (dh > 180) ? -360 : (dh < -180) ? 360 : 0
+			hsh += dh*f;
+			var a = Math.abs(v - hsv) / 90.0;
+			a = 1.0 * Math.max(1.0 - 2.0*Math.sqrt(a), 0);
+			v = v + 55.0 - v*1.5;
+			hsv = hsv*(1.0 - f) + v*f;
+			hs1.ath = hs2.ath = hsh;
+			hs1.atv = hs2.atv = hsv;
+			hs1.alpha = hs2.alpha = a;
+		}
+	]]>
+	</action>
+	<!-- VR support -->
+	<!-- webvr support -->
+	<include url="%VIEWER%/plugins/webvr.xml" />
+
+	<!-- force enabled positional tracking -->
+	<plugin name="webvr" postracking="false" />
+
+
 	<action name="hotspot_flycam_thumb" scope="local" args="isTrue">
 		if(isTrue,
-			set(hotspot[calc(get(caller.name) +'thumb')].visible, true);
-			set(hotspot[calc(get(caller.name) +'text')].visible, true);
-			set(skin_settings.autotour, false);
-			autorotate.stop();
-			,
-			set(hotspot[calc(get(caller.name) +'thumb')].visible, false);
-			set(hotspot[calc(get(caller.name) +'text')].visible, false);
-			set(skin_settings.autotour, true);
-			autorotate.start();
+		set(hotspot[calc(get(caller.name) +'thumb')].visible, true);
+		set(hotspot[calc(get(caller.name) +'text')].visible, true);
+		set(skin_settings.autotour, false);
+		autorotate.stop();
+		,
+		set(hotspot[calc(get(caller.name) +'thumb')].visible, false);
+		set(hotspot[calc(get(caller.name) +'text')].visible, false);
+		set(skin_settings.autotour, true);
+		autorotate.start();
 		);
-		
+
 	</action>
 	<action name="do_crop_animation" scope="local" args="framewidth, frameheight, framerate">
 		if(isvalue(caller.linkedscene) AND skin_settings.tooltips_hotspots,
-			copy(caller.tooltip, scene[get(caller.linkedscene)].title);
-			caller.loadstyle(skin_tooltips);
+		copy(caller.tooltip, scene[get(caller.linkedscene)].title);
+		caller.loadstyle(skin_tooltips);
 		);
 		set(caller.oy, 0);
 		<!-- define local variables -->
 		calc(local.xframes, (caller.imagewidth /framewidth) BOR 0);
 		calc(local.frames, xframes * ((caller.imageheight / frameheight) BOR 0));
 		def(local.frame, integer, 0);
-		
+
 		<!-- set the first frame -->
 		calc(caller.crop, '0|0|' + framewidth + '|' + frameheight);
-		
+
 		<!-- do the animation -->
 		setinterval(calc('crop_anim_' + caller.name), calc(1.0 / framerate),
-			if(caller.loaded,
-				inc(frame);
-				if(frame GE frames, if(caller.onlastframe !== null, callwith(caller, onlastframe() ) ); set(frame,0); );
-				mod(xpos, frame, xframes);
-				div(ypos, frame, xframes);
-				Math.floor(ypos);
-				mul(xpos, framewidth);
-				mul(ypos, frameheight);
-				calc(caller.crop, xpos + '|' + ypos + '|' + framewidth + '|' + frameheight);
-			  ,
-				<!-- stop the interval when the hotspot gets removed -->
-				clearinterval(calc('crop_anim_' + caller.name));
-			);
+		if(caller.loaded,
+		inc(frame);
+		if(frame GE frames, if(caller.onlastframe !== null, callwith(caller, onlastframe() ) ); set(frame,0); );
+		mod(xpos, frame, xframes);
+		div(ypos, frame, xframes);
+		Math.floor(ypos);
+		mul(xpos, framewidth);
+		mul(ypos, frameheight);
+		calc(caller.crop, xpos + '|' + ypos + '|' + framewidth + '|' + frameheight);
+		,
+		<!-- stop the interval when the hotspot gets removed -->
+		clearinterval(calc('crop_anim_' + caller.name));
+		);
 		);
 	</action>
 
 	<action name="skin_hotspotstyle_setup" scope="local">
 		if(isvalue(caller.linkedscene) AND skin_settings.tooltips_hotspots,
-			copy(caller.tooltip, scene[get(caller.linkedscene)].title);
-			caller.loadstyle(skin_tooltips);
+		copy(caller.tooltip, scene[get(caller.linkedscene)].title);
+		caller.loadstyle(skin_tooltips);
 		);
 		set(caller.oy, 0);
 	</action>
@@ -239,48 +403,48 @@
 		set(global.scence_array[get(global.scence_array.count)], get(scene[get(xml.scene)].name));
 		set(global.scence_array.count, calc(global.scence_array.count + 1));
 		if(isvalue(caller.linkedscene),
-			copy(hs_linkedscene, caller.linkedscene);
-			set(caller.enabled, false);
-			skin_hidetooltips();
-			if(caller.use3dtransition,
-				skin_scene3dtransition(get(hs_linkedscene),get(caller.linkedscene_hoffset));
-			  ,
-				if(caller.linkedscene_lookat, txtsplit(caller.linkedscene_lookat, ',', hs_lookat_h, hs_lookat_v, hs_lookat_fov); );
-				tween(caller.depth|caller.alpha|caller.oy|caller.rx, 4000|0.0|-50|-60, 0.5, default,
-					skin_loadscene(get(hs_linkedscene), get(skin_settings.loadscene_blend));
-					if(hs_lookat_h !== null, skin_lookat(get(hs_lookat_h), get(hs_lookat_v), get(hs_lookat_fov)); );
-				);
-			);
+		copy(hs_linkedscene, caller.linkedscene);
+		set(caller.enabled, false);
+		skin_hidetooltips();
+		if(caller.use3dtransition,
+		skin_scene3dtransition(get(hs_linkedscene),get(caller.linkedscene_hoffset));
+		,
+		if(caller.linkedscene_lookat, txtsplit(caller.linkedscene_lookat, ',', hs_lookat_h, hs_lookat_v, hs_lookat_fov); );
+		tween(caller.depth|caller.alpha|caller.oy|caller.rx, 4000|0.0|-50|-60, 0.5, default,
+		skin_loadscene(get(hs_linkedscene), get(skin_settings.loadscene_blend));
+		if(hs_lookat_h !== null, skin_lookat(get(hs_lookat_h), get(hs_lookat_v), get(hs_lookat_fov)); );
+		);
+		);
 		);
 	</action>
-	
+
 	<action name="skin_scene3dtransition" scope="local" args="scenename, hlookatoffset">
 		motionblur = 0.5;
 		transitiondelay = 0.0;
 		transitiontime = 0.5;
 		transitiontweentype = "easeoutquad";
-		
+
 		if(caller AND caller.ishotspot,
-			<!-- called from a hotspot, move toward the hotspot -->
-			if(caller.depth == 0,
-				<!-- 3d placed hotspot -->
-				set3dtransition("image", caller.tx,caller.ty,caller.tz, motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
-			  ,
-				<!-- a hotspot with a spherical position -->
-				caller.getcenter(h,v);
-				if(v GT -50 AND v LT +50 AND caller.depth GT 120, set(v,0));
-				set3dtransition("sphere", h,v,(min(caller.depth,1000)), motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
-			);
-		  ,
-			<!-- called from a layer or a script, recenter at the new pano center (3d-model/depthmap panos only) -->
-			if(image.depthmap.url,
-				set3dtransition("image", 0,0,0, motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
-			);
+		<!-- called from a hotspot, move toward the hotspot -->
+		if(caller.depth == 0,
+		<!-- 3d placed hotspot -->
+		set3dtransition("image", caller.tx,caller.ty,caller.tz, motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
+		,
+		<!-- a hotspot with a spherical position -->
+		caller.getcenter(h,v);
+		if(v GT -50 AND v LT +50 AND caller.depth GT 120, set(v,0));
+		set3dtransition("sphere", h,v,(min(caller.depth,1000)), motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
 		);
-		
+		,
+		<!-- called from a layer or a script, recenter at the new pano center (3d-model/depthmap panos only) -->
+		if(image.depthmap.url,
+		set3dtransition("image", 0,0,0, motionblur, hlookatoffset, transitiondelay, transitiontime, transitiontweentype);
+		);
+		);
+
 		loadscene(get(scenename), null, MERGE, BLEND(get(transitiontime),get(transitiontweentype)));
 	</action>
-	
+
 
 	<!-- skin_tooltip - style for the thumb, hotspot and mapspot tooltips -->
 	<style name="skin_tooltips"
@@ -290,87 +454,90 @@
 	                     asyncloop(hovering, copy(layer[skin_tooltip].x,mouse.stagex); copy(layer[skin_tooltip].y,mouse.stagey); );"
 	       onout.addevent.mouse="tween(layer[skin_tooltip].alpha, 0.0, 0.1, default, set(layer[skin_tooltip].visible,false), copy(layer[skin_tooltip].x,mouse.stagex); copy(layer[skin_tooltip].y,mouse.stagey); );"
 	       />
-	
-	
+
+
 	<!-- add controls for 3D navigation -->
 	<!-- <include url="%VIEWER%/plugins/controls3d.xml" /> -->
-	
+
 	<!-- use depthbuffer for hotspots rendering -->
 	<display depthbuffer="true" />
-	
+
 	<!-- a background grid -->
 	<preview type="grid" />
-<style name="hittesttextfield"
-	type="text" textalign="center"
-	bgcolor="0x7777DD" bgalpha="0.8" bgborder="1 0x000000 1.0" oversampling="1"
-	zorder="1" depthbuffer="true"
+	<style name="hittesttextfield"
+		type="text" textalign="center"
+		bgcolor="0x7777DD" bgalpha="0.8" bgborder="1 0x000000 1.0" oversampling="1"
+		zorder="1" depthbuffer="true"
 	/>
-<hotspot name="thumb_wall"
-         style="hittesttextfield"
-         ath="0"
-         atv="0"
-         width="800"
-         height="500"
-         visible="true"
-         zorder="10"
-         distorted="true"
-         depth="1000"
-         keep="true"
-         background="true"
-         bgcolor="0xFFFFFF"
-         bgalpha="0.3" />
+	<hotspot name="thumb_wall"
+			 style="hittesttextfield"
+			 ath="0"
+			 atv="0"
+			 width="800"
+			 height="500"
+			 visible="true"
+			 zorder="10"
+			 distorted="true"
+			 depth="1000"
+			 keep="true"
+			 background="true"
+			 bgcolor="0xFFFFFF"
+			 bgalpha="0.3" />
 
-<hotspot name="close_button_wall"
-         type="image"
-         url="icons/close.png"
-         ath="0"
-         atv="0"
-         ox="380"
-         oy="-230"
-         scale="1"
-		 width="32"
-		 height="32"
-         distorted="true"
-         handcursor="true"
-         zorder="11"
-         depth="1001"
-         keep="true"
-         onclick="hide_all_thumbs();" />
+	<hotspot name="close_button_wall"
+			 type="image"
+			 url="icons/close.png"
+			 ath="0"
+			 atv="0"
+			 ox="380"
+			 oy="-230"
+			 scale="1"
+			 width="32"
+			 height="32"
+			 distorted="true"
+			 handcursor="true"
+			 zorder="11"
+			 depth="1001"
+			 keep="true"
+			 onclick="hide_all_thumbs();" />
 
 	<!-- the tooltip textfield -->
 	<layer name="skin_tooltip" keep="true"
        type="text"
        parent="STAGE"
        visible="false" alpha="0" enabled="false" zorder="2"
-       align="lefttop" 
-       edge="right"         ox="-10"             oy="0" 
+       align="lefttop"
+       edge="right"         ox="-10"             oy="0"
        width="auto"         bg="true"            bgcolor="0x000000" bgalpha="0.6" bgroundedge="5"
        txtshadow="get:skin_settings.design_text_txtshadow"
        css="calc:skin_settings.design_text_css + ' text-align:center; font-size:14px; padding:2px 8px;'"
        html=""
        />
 	<!--Vì tooltip này dùng parent="STAGE", nó cần được gán tọa độ X, Y theo vị trí chuột mỗi khi bạn rê vào nút. Bạn cần thêm action này vào file:-->
-	   <action name="skin_showtooltip_menu">
-    set(layer[skin_tooltip].html, %1);
-    
-    copy(layer[skin_tooltip].x, mouse.x);
-    copy(layer[skin_tooltip].y, mouse.y);
-    
-    set(layer[skin_tooltip].visible, true);
-    tween(layer[skin_tooltip].alpha, 1.0, 0.1);
-    
-    asyncloop(hovering, 
-        copy(layer[skin_tooltip].x, mouse.x);
-        copy(layer[skin_tooltip].y, mouse.y);
-    );
+	<action name="skin_showtooltip_menu">
+		set(layer[skin_tooltip].html, %1);
+
+		copy(layer[skin_tooltip].x, mouse.x);
+		copy(layer[skin_tooltip].y, mouse.y);
+
+		set(layer[skin_tooltip].visible, true);
+		tween(layer[skin_tooltip].alpha, 1.0, 0.1);
+
+		asyncloop(hovering,
+		copy(layer[skin_tooltip].x, mouse.x);
+		copy(layer[skin_tooltip].y, mouse.y);
+		);
 	</action>
 
 
 	<!-- skin layout -->
 	<layer name="skin_layer" keep="true" type="container" align="top" width="get:skin_settings.layout_width" maxwidth="100%" height="100%" maskchildren="true" visible="false" bgcapture="false" zorder="1">
-		<layer name="skin_scroll_window" type="container" align="left" width="100%" height="100%" x="0" y="calc:skin_settings.controlbar_offset + skin_settings.controlbar_height - skin_settings.controlbar_overlap" maskchildren="true" onloaded="skin_calc_opened_closed();" zorder="1" bgroundedge.firefox="1">
-			<layer name="skin_scroll_layer" type="container" align="bottom" width="40%" height="60%" x="0" y="200" y_offset="get:skin_settings.controlbar_overlap" accuracy="1" bgalpha="get:skin_settings.design_bgalpha" bgcolor="get:skin_settings.design_bgcolor" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow">
-				<layer name="skin_video_controls" type="container" align="lefttop" edge="leftbottom" width="100%" height="18" visible="false">
+
+		<layer name="skin_scroll_window" type="container" align="bottom" width="100%" height="100%" x="0" y="0" maskchildren="true" onloaded="skin_calc_opened_closed();" zorder="1" bgroundedge.firefox="1" >
+			<!--mask true-->
+			<!--Chú ý chỉnh lại y nếu muốn perfect-->
+			<layer name="skin_scroll_layer" type="container" align="bottom" width="50%" height="41%" x="0" y="0" y_offset="get:skin_settings.controlbar_overlap" accuracy="1" bgalpha="get:skin_settings.design_bgalpha" bgcolor="get:skin_settings.design_bgcolor" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow">
+				<!-- <layer name="skin_video_controls" type="container" align="lefttop" edge="leftbottom" width="100%" height="18" visible="false" >
 					<layer name="skin_video_seekbar_container" type="container" align="lefttop" width="100%" height="100%" bgcapture="true" ondown="skin_video_ondownseeking();" >
 						<layer name="skin_video_seekbar" type="container" bgcolor="0xFFFFFF" bgalpha="0.25" align="center" width="100%" height="2">
 							<layer name="skin_video_loadbar" type="container" bgcolor="0xFFFFFF" bgalpha="0.5" align="left" width="0" height="2" />
@@ -378,7 +545,8 @@
 						</layer>
 					</layer>
 					<layer name="skin_video_time" type="text" align="rightbottom" x="4" enabled="false" bg="false" css="calc:skin_settings.design_text_css + ' text-align:left; font-style:italic; font-size:12px;'" txtshadow="get:skin_settings.design_text_txtshadow" html="0:00 / 0:00" />
-				</layer>
+				</layer> -->
+				<!--Chú ý-->
 				<layer name="skin_scroll_container" type="container" align="lefttop" width="100%" height="100%" x="0" y="0" bgroundedge="get:skin_settings.design_bgroundedge" maskchildren="true">
 					<layer name="skin_thumbs_container" type="container" align="lefttop" width="100%" height="100%" visible="false">
 						<layer name="skin_thumbs_scrollleft"  style="skin_base|skin_glow" crop="0|64|64|64"  align="lefttop"  edge="left"  x="5" y="50" scale="0.5" zorder="2" alpha="1.0" ondown="asyncloop(pressed, layer[skin_thumbs].scrollby(+2,0));" visible="false" />
@@ -388,54 +556,36 @@
 					</layer>
 				</layer>
 			</layer>
-			
 		</layer>
-		<layer name="skin_map_layer" style="map_hover" type="container" visible="false" align="rightbottom" width="25%" alpha="0.7" height="45%" x="0" y="110" y_offset="get:skin_settings.controlbar_overlap" accuracy="1" bgalpha="get:skin_settings.design_bgalpha" bgcolor="get:skin_settings.design_bgcolor" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow" maskchildren="true"> 
-				<layer name="button_close" url="icons/close.png" align="righttop" x="0" y="0"	width="36" height="36"	handcursor="true" onclick="skin_showmap(false);" zorder="3"/>
-				<layer name="skin_map_container" type="container" align="rightbottom"  width="100%" height="100%" bgroundedge="get:skin_settings.design_bgroundedge" 	>
-					<layer name="skin_map" type="container" scale="1" url="map.png" visible="false" align="center" width="100%" height="100%" x="0" y="0" zorder="1" alpha="0.05" cursor="default" onmapready="skin_addcustommapspots_around();">
-						<layer name="location_container" type="container" visible="true" width="10%" height="10%"  zorder="2"  onmapready="skin_addcustommapspots();">
-							<!-- <plugin name="radar"  url.html5="../plugins/radar_source.js" x="-50" y="-50" scale="0.5" heading="0.0" headingoffset="90.0" fillcolor="0x45bfe3" fillalpha="0.5" linewidth="0.0" linecolor="0xFFFFFF" linealpha="0.3" invert="false" cursor="default"/> -->
-						</layer>
+
+		<layer name="skin_map_layer" style="map_hover" type="container" visible="false" align="leftbottom" width="150" alpha="0.7" height="150" x="0" y="110" y_offset="get:skin_settings.controlbar_overlap" accuracy="1" bgalpha="get:skin_settings.design_bgalpha" bgcolor="get:skin_settings.design_bgcolor" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow" maskchildren="true">
+			<layer name="button_close" url="icons/close.png" align="righttop" x="0" y="0"	width="36" height="36"	handcursor="true" onclick="skin_showmap(false);" zorder="3"/>
+			<layer name="skin_map_container" type="container" align="rightbottom"  width="100%" height="100%" bgroundedge="get:skin_settings.design_bgroundedge" 	>
+				<layer name="skin_map" type="container" scale="1" url="map.png" visible="false" align="center" width="100%" height="100%" x="0" y="0" zorder="1" alpha="0.05" cursor="default" onmapready="skin_addcustommapspots_around();">
+					<layer name="location_container" type="container" visible="true" width="10%" height="10%"  zorder="2"  onmapready="skin_addcustommapspots();">
+						<!-- <plugin name="radar"  url.html5="../plugins/radar_source.js" x="-50" y="-50" scale="0.5" heading="0.0" headingoffset="90.0" fillcolor="0x45bfe3" fillalpha="0.5" linewidth="0.0" linecolor="0xFFFFFF" linealpha="0.3" invert="false" cursor="default"/> -->
 					</layer>
 				</layer>
 			</layer>
-		
+		</layer>
+
+		<!-- <layer name="skin_splitter_bottom" type="container" align="topleft" width="calc:skin_settings.controlbar_offset + skin_settings.controlbar_height - skin_settings.controlbar_overlap" height="96%" x="10" y="0" maskchildren="true" onloaded="skin_calc_opened_closed();" zorder="2">
+			<layer name="skin_control_bar_bg" type="container" align="topleft" width="calc:skin_settings.controlbar_height" height="96%" x="0" y="get:skin_settings.controlbar_offset" bgcolor="get:skin_settings.design_bgcolor" bgalpha="get:skin_settings.design_bgalpha" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow" />
+		</layer> -->
 
 		<layer name="box" type="container" align="top" x="0" y="20" width.normal="700" width.mobile="80%" height="80%" bgcolor="0x5c64af" bgalpha="1" bgborder="1 0x777777 0.5" bgroundedge="7" bgshadow="0 4 20 0x000000 0.25" visible="false">
 			<layer name="box_title" y="0" type="text" align="top" width="100%" height="50" bgalpha="1.0" zorder="2" bgcolor="0x5c64af" bgborder="0">
 				<layer name="content" type="text" html="Thông tin địa điểm" align="center" x="0" width="100%" height="20" css="color:white; font-size:18px; text-align:center; text-transform: uppercase" bgalpha="0.0" zorder="2"/>
 			</layer>
-			<layer name="close_button"
-				url="icons/close.png"
-				align="righttop"
-				x="0" y="5"
-				width="36" height="36"
-				handcursor="true"
-				onclick="show_info();"
-				zorder="2"
-			/>
-			<layer name="scrollarea"
-				type="scrollarea"
-				width="-10" flowchildren="v" childmargin="50 0 10 10"
-				scrolltype.desktop="smooth"
-				scrolltype.tablet.or.mobile="inertia"
-				direction="v"
-				draggable="true"
-				mwheel="true"
-				capturechildren="true"
-				autoscrollbars="null,vscrollbar_grip,10"
-				onhover_autoscrolling="false"
-				onscroll=""
-				onoverflowchange=""
-				>
+			<layer name="close_button" url="icons/close.png" align="righttop" x="0" y="5" width="36" height="36" handcursor="true" onclick="show_info();" zorder="2" />
+			<layer name="scrollarea" type="scrollarea"	width="-10" flowchildren="v" childmargin="50 0 10 10" scrolltype.desktop="smooth" scrolltype.tablet.or.mobile="inertia"
+				direction="v" draggable="true" mwheel="true" capturechildren="true" autoscrollbars="null,vscrollbar_grip,10" onhover_autoscrolling="false" onscroll="" onoverflowchange="">
 				<layer name="somecontent" type="text" align="lefttop" html="get:data[test].content" htmlautosize="true" width="100%" bgalpha="0.0" css="color:white; font-size:1rem; text-align:justify; line-height: 1.5; font-family: Arial, sans-serif; padding: 10px;"
-					onclick="callwith(hotspot[info], set(enabled,true);tween(alpha,1); spheretoscreen(ath,atv,fade_to_x,fade_to_y); ); fade_to_x-=stagewidth/2; fade_to_y-=stageheight/2; callwith(layer[box], tween(scale|alpha|ox|oy,('0|0|'+fade_to_x+'|'+fade_to_y)) ); "
-					/>
+					onclick="callwith(hotspot[info], set(enabled,true);tween(alpha,1); spheretoscreen(ath,atv,fade_to_x,fade_to_y); ); fade_to_x-=stagewidth/2; fade_to_y-=stageheight/2; callwith(layer[box], tween(scale|alpha|ox|oy,('0|0|'+fade_to_x+'|'+fade_to_y)) ); "/>
 			</layer>
 			<layer name="vscrollbar_bg" type="container" align="right" width="16" height="100%">
-			<layer name="vscrollbar_grip" type="container" align="righttop" width="8" x="4" height="16" bgcolor="0xAAAAAA" bgalpha="0.5" bgroundedge="7" bgcapture="true" />
-		</layer>
+				<layer name="vscrollbar_grip" type="container" align="righttop" width="8" x="4" height="16" bgcolor="0xAAAAAA" bgalpha="0.5" bgroundedge="7" bgcapture="true" />
+			</layer>
 		</layer>
 		<!-- <layer name="skin_splitter_bottom" type="container" align="right" width="110" height="96%" x="10" y="0" maskchildren="true" onloaded="skin_calc_opened_closed();" zorder="2">
 			<layer name="skin_control_bar_bg" type="container" align="topleft" width="calc:skin_settings.controlbar_height" height="96%" x="0" y="get:skin_settings.controlbar_offset" bgcolor="get:skin_settings.design_bgcolor" bgalpha="get:skin_settings.design_bgalpha" bgborder="get:skin_settings.design_bgborder" bgroundedge="get:skin_settings.design_bgroundedge" bgshadow="get:skin_settings.design_bgshadow" />
@@ -448,9 +598,11 @@
 					<layer name="text_prev" capture="false" type="text" html="ẢNH TRƯỚC" y="60%" width="100%" height="35%" bg="false"
 						css="text-align:center; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="skin_btn_prev"  type="container" align="bottom" style="skin_hover" width="44" height="44" y="400" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_prev" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="go_back();" onhover="skin_showtooltip_menu('Trở lại ảnh trước');" onout="skin_hidetooltips();">
-						<layer name="icon_prev" capture="false" align="center" url="icons/prev.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="skin_btn_prev"  type="container" align="bottom" style="skin_hover" width="44" height="44" y="400" bgcolor="0x000000" bgalpha="0"
+					   onover="tween(layer[bg_prev].bgalpha,0.75,0.15);tween(layer[icon_prev].scale,0.6,0.15); "
+					   onout="tween(layer[bg_prev].bgalpha,0.45,0.15); tween(layer[icon_prev].scale,0.5,0.15);">
+					<layer name="bg_prev" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="if(skin_settings.thumbs_loop, skin_nextscene_loop(-1), skin_nextscene(-1) );" onhover="skin_showtooltip_menu('Trở lại ảnh trước');" onout="skin_hidetooltips();">
+						<layer name="icon_prev" capture="false" align="center" url="icons/prev.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -460,9 +612,11 @@
 					<layer name="text_view" capture="false" type="text" html="TOÀN CẢNH" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_view"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="350" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_view" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Tổng quan địa điểm');" onout="skin_hidetooltips();">
-						<layer name="icon_view" capture="false" align="center" url="icons/view.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_view"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="350" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_view].bgalpha,0.75,0.15);tween(layer[icon_view].scale,0.6,0.15);"
+					   onout="tween(layer[bg_view].bgalpha,0.45,0.15); tween(layer[icon_view].scale,0.5,0.15);">
+					<layer name="bg_view" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Tổng quan địa điểm');" onout="skin_hidetooltips();">
+						<layer name="icon_view" capture="false" align="center" url="icons/view.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -471,9 +625,11 @@
 					<layer name="text_music" capture="false" type="text" html="NHẠC NỀN:OFF" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_menu"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="300" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_menu" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" ondown="skin_showmap(false); skin_showthumbs();" onhover="skin_showtooltip_menu('Album ảnh');" onout="skin_hidetooltips();">
-						<layer name="icon_menu" capture="false" align="center" url="icons/menu.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_menu"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="300" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_menu].bgalpha,0.75,0.15);tween(layer[icon_menu].scale,0.6,0.15);"
+					   onout="tween(layer[bg_menu].bgalpha,0.45,0.15); tween(layer[icon_menu].scale,0.5,0.15);">
+					<layer name="bg_menu" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" ondown="skin_showmap(false); skin_showthumbs();" onhover="skin_showtooltip_menu('Album ảnh');" onout="skin_hidetooltips();">
+						<layer name="icon_menu" capture="false" align="center" url="icons/menu.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -482,9 +638,11 @@
 					<layer name="text_info" capture="false" type="text" html="GIỚI THIỆU:OFF" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_360"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="250" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_360" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="view_360_action();" onhover="skin_showtooltip_menu('Toàn cảnh');" onout="skin_hidetooltips();">
-						<layer name="icon_360" capture="false" align="center" url="icons/360.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_360"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="250" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_360].bgalpha,0.75,0.15);tween(layer[icon_360].scale,0.6,0.15);"
+					   onout="tween(layer[bg_360].bgalpha,0.45,0.15); tween(layer[icon_360].scale,0.5,0.15);">
+					<layer name="bg_360" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="view_360_action();" onhover="skin_showtooltip_menu('Toàn cảnh');" onout="skin_hidetooltips();">
+						<layer name="icon_360" capture="false" align="center" url="icons/360.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -493,9 +651,11 @@
 					<layer name="text_info_circle" capture="false" type="text" html="THÔNG TIN" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_vr"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="200" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_vr" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Thực Tế Ảo');" onout="skin_hidetooltips();">
-						<layer name="icon_vr" capture="false" align="center" url="icons/vr.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_vr"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="200" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_vr].bgalpha,0.75,0.15);tween(layer[icon_vr].scale,0.6,0.15);"
+					   onout="tween(layer[bg_vr].bgalpha,0.45,0.15); tween(layer[icon_vr].scale,0.5,0.15);">
+					<layer name="bg_vr" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Thực Tế Ảo');" onout="skin_hidetooltips();">
+						<layer name="icon_vr" capture="false" align="center" url="icons/vr.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -504,9 +664,11 @@
 					<layer name="text_map" capture="false" type="text" html="BẢN ĐỒ" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_photo"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="150" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_photo" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Chụp hình');" onout="skin_hidetooltips();">
-						<layer name="icon_photo" capture="false" align="center" url="icons/close.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_photo"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="150" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_photo].bgalpha,0.75,0.15);tween(layer[icon_photo].scale,0.6,0.15);"
+					   onout="tween(layer[bg_photo].bgalpha,0.45,0.15); tween(layer[icon_photo].scale,0.5,0.15);">
+					<layer name="bg_photo" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Chụp hình');" onout="skin_hidetooltips();">
+						<layer name="icon_photo" capture="false" align="center" url="icons/camera.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -515,9 +677,11 @@
 					<layer name="text_menu" capture="false" type="text" html="MENU" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_auto"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="100" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_auto" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Bật/Tắt tự xoay');" onout="skin_hidetooltips();">
-						<layer name="icon_auto" capture="false" align="center" url="icons/close.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_auto"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="100" bgcolor="0x000000" bgalpha="0.001"
+					       onover="tween(layer[bg_auto].bgalpha,0.75,0.15);tween(layer[icon_auto].scale,0.6,0.15);"
+					   onout="tween(layer[bg_auto].bgalpha,0.45,0.15); tween(layer[icon_auto].scale,0.5,0.15);">
+					<layer name="bg_auto" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Bật/Tắt tự xoay');" onout="skin_hidetooltips();">
+						<layer name="icon_auto" capture="false" align="center" url="icons/auto.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -526,9 +690,11 @@
 					<layer name="text_360" capture="false" type="text" html="VIEW 360" x="0" y="60%" width="100%" height="13" bg="false"
 						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
 				</layer> -->
-				<layer name="btn_full"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="50" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_full" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Bật/Tắt toàn màn hình');" onout="skin_hidetooltips();">
-						<layer name="icon_full" capture="false" align="center" url="icons/close.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_full"  type="container" align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="50" bgcolor="0x000000" bgalpha="0.001"
+					   onover="tween(layer[bg_full].bgalpha,0.75,0.15);tween(layer[icon_full].scale,0.6,0.15);"
+					   onout="tween(layer[bg_full].bgalpha,0.45,0.15); tween(layer[icon_full].scale,0.5,0.15);">
+					<layer name="bg_full" bgcapture="false" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="start_vr();" onhover="skin_showtooltip_menu('Bật/Tắt toàn màn hình');" onout="skin_hidetooltips();">
+						<layer name="icon_full" capture="false" align="center" url="icons/full.png" width="70" height="70" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -543,9 +709,11 @@
 						<layer name="icon_vr" capture="false" align="center" url="icons/vr.png" width="36" height="65%" scale="0.5" origin="center"/>
 					</layer>
 				</layer> -->
-				<layer name="btn_hide"  type="container"  align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="0" bgcolor="0x000000" bgalpha="0.001">
-    				<layer name="bg_hide" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="toggle_control_buttons();" onhover="skin_showtooltip_menu('Ẩn/Hiện Menu');" onout="skin_hidetooltips();">
-						<layer name="icon_hide" capture="false" align="center" url="icons/close.png" width="36" height="65%" scale="0.5" origin="center"/>
+				<layer name="btn_hide"  type="container"  align="bottom" style="skin_base|skin_glow"  width="44" height="44" y="0" bgcolor="0x000000" bgalpha="0.001"
+					    onover="tween(layer[bg_hide].bgalpha,0.75,0.15);tween(layer[icon_hide].scale,0.6,0.15);"
+					   onout="tween(layer[bg_hide].bgalpha,0.45,0.15); tween(layer[icon_hide].scale,0.5,0.15);">
+					<layer name="bg_hide" bgcapture="true" type="container" align="center" width="44" height="44" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="22" keep="true" onclick="toggle_control_buttons();" onhover="skin_showtooltip_menu('Ẩn/Hiện Menu');" onout="skin_hidetooltips();">
+						<layer name="icon_hide" capture="false" align="center" url="icons/hide.png" width="45" height="45" scale="0.5" origin="center"/>
 					</layer>
 				</layer>
 
@@ -579,7 +747,7 @@
 
 		<!-- <layer name="skin_loadingtext" type="text" align="center" x="5" y="-5" html="get:skin_settings.loadingtext" visible="false" bg="false" enabled="false" css="calc:skin_settings.design_text_css + ' text-align:center; font-style:italic; font-size:22px;'" txtshadow="get:skin_settings.design_text_txtshadow" />
 		<layer name="skin_buttonglow"  style="skin_base" crop="64|384|64|64" align="center" x="0" y="1" scale="1.0" alpha="0.0" visible="false" enabled="false" /> -->
-		
+
 		<!--Tạm ẩn phần nút sang ảnh tiếp theo-->
 		<!-- <layer name="btn_next_scene" type="container" align="right" width="230" height="9%" x="10" y="-100" onclick="if(skin_settings.thumbs_loop, skin_nextscene_loop(+1), skin_nextscene(+1) );" background="true" bgcolor="0x000000" bgalpha="0.5" bgcapture="true" bgroundedge="10">
 			<layer name="icon_next_scene" capture="false" type="text" align="rightcenter"  url="icons/right-arrow.png" width="60" height="60" scale="0.7"/>
@@ -596,9 +764,80 @@
 			<layer name="skin_title" type="text" zorder="0" x="30%" align="left" width="80%" enabled="false" bg="false" css="calc:skin_settings.design_text_css + ' text-align:left; font-style:italic; font-size:18px; word-wrap: break-word; white-space: normal;'" txtshadow="get:skin_settings.design_text_txtshadow" visible="false" onautosized="skin_video_updateseekbarwidth();" />
 		</layer>	
 		<layer name="skin_thumbborder" type="container" x="get:skin_settings.design_thumbborder_padding" y="get:skin_settings.design_thumbborder_padding" width="calc:skin_settings.thumbs_width - 2*skin_settings.design_thumbborder_padding" height="calc:skin_settings.thumbs_height - 2*skin_settings.design_thumbborder_padding" visible="false" enabled="false" align="lefttop" bgborder="get:skin_settings.design_thumbborder_bgborder" bgroundedge="get:skin_settings.design_thumbborder_bgroundedge" /> -->
+
 		
-		
-	
+		<!--LEFT MENU-->
+		<layer name="left_menu_container" keep="true" type="container" align="left" edge="left" x="10" y="0" width="150" height="250" zorder="3" bgcapture="false" capture="false">
+
+			<layer name="btn_back" type="container" align="topleft" width="44" height="44" x="0" y="0">
+				<layer name="bg_back" type="container" align="center" width="44" height="44"
+					   bgcolor="0xFFFFFF" bgalpha="1" bgroundedge="22" bgcapture="true"
+					   onclick="toggle_left_menu_display();">
+
+					<layer name="icon_back" url="icons/right-arrow.png" align="center" width="30" height="30" scale="0.5" rotate="180" enabled="false" capture="false" />
+				</layer>
+			</layer>
+
+			<layer name="place_list_group" type="container" align="top" width="100%" height="500">
+
+
+
+				<layer name="item_g6" style="menu_row_style" y="50" onclick="update_menu_active('item_g6'); skin_showthumbs('g6_scene'); ">
+					<layer name="ind_g6" style="indicator_style" />
+					<layer name="txt_g6" style="menu_text" html="Giảng đường G6" />
+				</layer>
+
+				<layer name="item_g7" style="menu_row_style" y="80" onclick="filter_scenes_by_tag('g7_scene'); update_menu_active('item_g7');">
+					<layer name="ind_g7" style="indicator_style" />
+					<layer name="txt_g7" style="menu_text" html="Giảng đường G7" />
+				</layer>
+
+				<layer name="item_g8" style="menu_row_style" y="110" onclick="filter_scenes_by_tag('g8_scene'); update_menu_active('item_g8');">
+					<layer name="ind_g8" style="indicator_style" />
+					<layer name="txt_g8" style="menu_text" html="Giảng đường G8" />
+				</layer>
+
+				<layer name="item_loivao" style="menu_row_style" y="140" onclick="filter_scenes_by_tag('loivao_scene'); update_menu_active('item_loivao');">
+					<layer name="ind_loivao" style="indicator_style" />
+					<layer name="txt_loivao" style="menu_text" html="Cổng trường" />
+				</layer>
+
+				<layer name="item_ndn" style="menu_row_style" y="170" onclick="filter_scenes_by_tag('ndn_scene'); update_menu_active('item_ndn');">
+					<layer name="ind_ndn" style="indicator_style" />
+					<layer name="txt_ndn" style="menu_text" html="Nhà đa năng" />
+				</layer>
+
+			</layer>
+		</layer>
+
+		<!--onclick="toggle_control_buttons();" onhover="skin_showtooltip_menu('Ẩn/Hiện Menu');" onout="skin_hidetooltips();"-->
+		<layer name="btn_map" type="container" align="leftbottom" style="skin_base|skin_glow" x="" y="50" width="50" height="50" bgcolor="0x44B5E8" bgalpha="0.5" bgcapture="true" ondown="set(layer[skin_map_layer].visible,true); skin_showthumbs(false); skin_showmap(); skin_addcustommapspots(); skin_addcustommapspots_around();" onhover="skin_showtooltip_menu('Bật/Tắt bản đồ');" onout="skin_hidetooltips();">
+			<layer name="icon_map" capture="false" url="icons/map.png" x="43%" y="20%" width="36" height="65%" scale="0.5" origin="center" />
+			<layer name="text_map" capture="false" type="text" html="BẢN ĐỒ" x="0" y="60%" width="100%" height="13" bg="false"
+				css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
+		</layer>
+
+
+		<layer name="btn_music"  type="container"  align="rightbottom" style="skin_base|skin_glow"  x="110" y="70"  bgcolor="0x000000" bgalpha="0.001">
+			<layer name="bg_info_circle" bgcapture="true" type="container" align="lefttop" x="-20" width="40" height="40" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="90" keep="true" onclick="toggle_music();" onhover="skin_showtooltip_menu('Bật/Tắt');" onout="skin_hidetooltips();">
+				<layer name="icon_info_circle" capture="false" align="center" url="icons/info-circle.png" width="36" height="65%" scale="0.5" origin="center"/>
+			</layer>
+			<layer name="bg_mucsic" bgcapture="true" type="container" align="center" width="100" height="100" bgcolor="0x44B5E8" bgalpha="0.45" bgroundedge="90" keep="true" onclick="toggle_music();" onhover="skin_showtooltip_menu('Bật/Tắt thuyết minh');" onout="skin_hidetooltips();">
+				<layer name="icon_music" capture="false" align="center" url="icons/close.png" width="90" height="90" scale="1" origin="center"/>
+			</layer>
+		</layer>
+
+		<!-- <layer name="btn_info_circle" type="container" style="skin_hover" x="" y="40%" width="100%" height="10%" background="true" bgcolor="0x000000" bgalpha="0.001" bgcapture="true" onclick="show_info();">
+					<layer name="icon_info_circle" capture="false" url="icons/info-circle.png" x="43%" y="20%" width="36" height="65%" scale="0.5" origin="center" />
+					<layer name="text_info_circle" capture="false" type="text" html="THÔNG TIN" x="0" y="60%" width="100%" height="13" bg="false"
+						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
+				</layer> -->
+
+		<!-- <layer name="btn_music" type="container" style="skin_hover" x="" y="20%" width="100%" height="10%" background="true" bgcolor="0x000000" bgalpha="0.001" bgcapture="true" onclick="toggle_music()">
+					<layer name="icon_music" capture="false" url="icons/music.png" x="43%" y="20%" width="36" height="65%" scale="0.5" origin="center" />
+					<layer name="text_music" capture="false" type="text" html="NHẠC NỀN:OFF" x="0" y="60%" width="100%" height="13" bg="false"
+						css="text-align:center; font-size:11px; color:#FFFFFF; font-family:sans-serif; background:none" />
+				</layer> -->
 
 
 	</layer>
@@ -614,34 +853,34 @@
 		<layer name="skin_btn_next_fs_icon" style="skin_base" crop="64|64|64|64" align="center" scale="0.5" enabled="false" />
 	</layer> -->
 
-<!-- gyro plugin -->
+	<!-- gyro plugin -->
 	<plugin name="skin_gyro" keep="true" url="" plugin_url="%VIEWER%/plugins/gyro2.js" softstart="1.0" desktopsupport="false" enabled="false"
 		onavailable="skin_arrange_buttons();"
-		ondenied="skin_gyro_ondenied();" 
+		ondenied="skin_gyro_ondenied();"
 		/>
-	
 
-		
-<action name="hide_all_thumbs" scope="local">
-	set(i, 0);
-	for(set(i, 0), i LT global.thumbs.length, inc(i),
+
+
+	<action name="hide_all_thumbs" scope="local">
+		set(i, 0);
+		for(set(i, 0), i LT global.thumbs.length, inc(i),
 		copy(hsname, global.thumbs[get(i)]);
 
 		set(hotspot[get(hsname)].visible, false);
 		set(hotspot[calc(get(hsname) + '_text')].visible, false);
 		set(hotspot[calc(get(hsname) + 'bg')].visible, false);
-	);
-	set(hotspot[thumb_wall].visible, false);
-	set(hotspot[close_button_wall].visible, false);
-</action>
-<action name="generate_scene_thumbs" scope="local" autorun="onstart">
-	set(i, 0);
-	set(columns, 3);                  <!-- số cột của lưới thumbnails -->
-	def(global.thumbs, array);
-	def(global.scence_array, array);
-	set(global.scence_array.count, 0);
+		);
+		set(hotspot[thumb_wall].visible, false);
+		set(hotspot[close_button_wall].visible, false);
+	</action>
+	<action name="generate_scene_thumbs" scope="local" autorun="onstart">
+		set(i, 0);
+		set(columns, 3);                  <!-- số cột của lưới thumbnails -->
+		def(global.thumbs, array);
+		def(global.scence_array, array);
+		set(global.scence_array.count, 0);
 
-	for(set(sceneindex, 0), sceneindex LT scene.count, inc(sceneindex),
+		for(set(sceneindex, 0), sceneindex LT scene.count, inc(sceneindex),
 
 		copy(scname, scene[get(sceneindex)].name);
 		copy(title, scene[get(scname)].title);
@@ -655,7 +894,7 @@
 		set(ox, calc(get(x) * 250 - 240));   <!-- khoảng cách ngang, canh giữa -->
 		set(oy, calc(get(y) * 160 - 150));   <!-- khoảng cách dọc -->
 
-				<!-- Tạo thumbnail -->
+		<!-- Tạo thumbnail -->
 		addhotspot(get(scname));
 		<!-- set(hotspot[get(scname)].parent, thumb_wall); -->
 		set(hotspot[get(scname)].url, get(thumburl));
@@ -704,12 +943,12 @@
 		set(global.thumbs[get(global.thumbs.length)], get(scname));
 
 		inc(i);
-	);
-	hide_all_thumbs();
-</action>
-<action name="get_next_scene" scope="local">
-	set(nextscenename, "");
-	if(isset(scene[get(xml.scene)].thumbindex),
+		);
+		hide_all_thumbs();
+	</action>
+	<action name="get_next_scene" scope="local">
+		set(nextscenename, "");
+		if(isset(scene[get(xml.scene)].thumbindex),
 		sub(lastsceneindex, thumbarray.length, 1);
 		add(nextscenename, scene[get(xml.scene)].thumbindex, +1);
 		if(nextscenename LT 0, copy(nextscenename,lastsceneindex));
@@ -721,14 +960,14 @@
 		if(nextscenename LT 0, copy(nextscenename,lastsceneindex));
 		if(nextscenename GT lastsceneindex, set(nextscenename,0));
 		set(nextscenename, get(scene[get(nextscenename)].title));
-	);
-	if(nextscenename != null,
+		);
+		if(nextscenename != null,
 		set(layer[text_next_scene].html, get(nextscenename));
-	);
-</action>
-<action name="show_all_thumbs" scope="local">
-	set(i, 0);
-	for(set(i, 0), i LT global.thumbs.length, inc(i),
+		);
+	</action>
+	<action name="show_all_thumbs" scope="local">
+		set(i, 0);
+		for(set(i, 0), i LT global.thumbs.length, inc(i),
 		copy(hsname, global.thumbs[get(i)]);
 
 		set(hotspot[get(hsname)].visible, true);
@@ -741,16 +980,16 @@
 		set(hotspot[get(hsname)].ath, get(view.hlookat));
 		set(hotspot[calc(get(hsname) + '_text')].ath, get(view.hlookat));
 		set(hotspot[calc(get(hsname) + 'bg')].ath, get(view.hlookat));
-	);
-	set(hotspot[thumb_wall].visible, true);
-	set(hotspot[close_button_wall].visible, true);
-	set(hotspot[thumb_wall].atv, get(view.vlookat));
-	set(hotspot[close_button_wall].atv, get(view.vlookat));
-	set(hotspot[thumb_wall].ath, get(view.hlookat));
-	set(hotspot[close_button_wall].ath, get(view.hlookat));
-</action>
-<action name="skin_addcustommapspots">
-	if(device.mobile OR device.tablet,
+		);
+		set(hotspot[thumb_wall].visible, true);
+		set(hotspot[close_button_wall].visible, true);
+		set(hotspot[thumb_wall].atv, get(view.vlookat));
+		set(hotspot[close_button_wall].atv, get(view.vlookat));
+		set(hotspot[thumb_wall].ath, get(view.hlookat));
+		set(hotspot[close_button_wall].ath, get(view.hlookat));
+	</action>
+	<action name="skin_addcustommapspots">
+		if(device.mobile OR device.tablet,
 		calc(spotname, 'spothere');
 		addlayer(get(spotname));
 		set(layer[get(spotname)].url, skin/icons/here.png);
@@ -762,7 +1001,7 @@
 		set(layer[calc(get(spotname))].height, 30);
 		set(layer[calc(get(spotname))].zorder, 3);
 		set(layer[calc(get(spotname))].onloaded, do_animation(120,120,10));
-	,
+		,
 		calc(spotname, 'spothere');
 		addlayer(get(spotname));
 		set(layer[get(spotname)].url, skin/icons/here.png);
@@ -774,201 +1013,201 @@
 		set(layer[calc(get(spotname))].height, 30);
 		set(layer[calc(get(spotname))].zorder, 3);
 		set(layer[calc(get(spotname))].onloaded, do_animation(120,120,10));
-	)
-		
+		)
+
 	</action>
 	<action name="locate_map_hover" scope="local" args="layertoglow, layertext, istrue">
 		if(layertoglow != null,
-			if(istrue,
-				set(layer[get(layertoglow)].visible, true);
-				set(layer[get(layertext)].visible, true);
-				,
-				set(layer[get(layertoglow)].visible, false);
-				set(layer[get(layertext)].visible, false);
-			);
+		if(istrue,
+		set(layer[get(layertoglow)].visible, true);
+		set(layer[get(layertext)].visible, true);
+		,
+		set(layer[get(layertoglow)].visible, false);
+		set(layer[get(layertext)].visible, false);
+		);
 		);
 	</action>
 	<action name="skin_addcustommapspots_around">
 		copy(curx, scene[get(xml.scene)].mapx);
 		copy(cury, scene[get(xml.scene)].mapy);
 		if(device.mobile OR device.tablet,
-			for(set(i,0), i LT scene.count, inc(i),
-				if(scene[get(i)].mapx AND scene[get(i)].mapy,
-					if( !(scene[get(i)].mapx == get(curx) AND scene[get(i)].mapy == get(cury)),
-						copy(spotaroundscname, scene[get(i)].name);
-						copy(spotaround, scene[get(i)].name );
-						addlayer(calc(get(spotaround)+'map'));
-						set(layer[calc(get(spotaround)+ 'map')].url, skin/icons/here1.png);
-						set(layer[calc(get(spotaround)+ 'map')].type, 'image');
-						set(layer[calc(get(spotaround)+ 'map')].visible, true);
-						set(layer[calc(get(spotaround)+ 'map')].parent, "skin_map");
+		for(set(i,0), i LT scene.count, inc(i),
+		if(scene[get(i)].mapx AND scene[get(i)].mapy,
+		if( !(scene[get(i)].mapx == get(curx) AND scene[get(i)].mapy == get(cury)),
+		copy(spotaroundscname, scene[get(i)].name);
+		copy(spotaround, scene[get(i)].name );
+		addlayer(calc(get(spotaround)+'map'));
+		set(layer[calc(get(spotaround)+ 'map')].url, skin/icons/here1.png);
+		set(layer[calc(get(spotaround)+ 'map')].type, 'image');
+		set(layer[calc(get(spotaround)+ 'map')].visible, true);
+		set(layer[calc(get(spotaround)+ 'map')].parent, "skin_map");
 
-						set(layer[calc(get(spotaround)+ 'map')].ox, calc(calc(stagewidth) * get(scene[get(i)].mapx)));
-						set(layer[calc(get(spotaround)+ 'map')].oy, calc(calc(stageheight/2)* get(scene[get(i)].mapy)));
-						set(layer[calc(get(spotaround)+ 'map')].width, 20);
-						set(layer[calc(get(spotaround)+ 'map')].height, 20);
-						set(layer[calc(get(spotaround)+ 'map')].zorder, 3);
-						set(temp, calc('skin_loadscene(' + get(spotaroundscname) + ', ' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+ 'map')].onclick, get(temp));
+		set(layer[calc(get(spotaround)+ 'map')].ox, calc(calc(stagewidth) * get(scene[get(i)].mapx)));
+		set(layer[calc(get(spotaround)+ 'map')].oy, calc(calc(stageheight/2)* get(scene[get(i)].mapy)));
+		set(layer[calc(get(spotaround)+ 'map')].width, 20);
+		set(layer[calc(get(spotaround)+ 'map')].height, 20);
+		set(layer[calc(get(spotaround)+ 'map')].zorder, 3);
+		set(temp, calc('skin_loadscene(' + get(spotaroundscname) + ', ' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+ 'map')].onclick, get(temp));
 
-						set(layer[calc(get(spotaround)+ 'map')].onloaded, do_animation(120,120,10));
+		set(layer[calc(get(spotaround)+ 'map')].onloaded, do_animation(120,120,10));
 
-						copy(thumburl, scene[get(i)].thumburl);
-						
-								<!-- Tạo thumbnail -->
-						addlayer(calc(get(spotaround)+'thumbmap'));
-						set(layer[calc(get(spotaround)+'thumbmap')].url, get(thumburl));
-						
-						set(layer[calc(get(spotaround)+'thumbmap')].type, 'image');
-						set(layer[calc(get(spotaround)+'thumbmap')].ox, calc(calc(stagewidth)*calc(get(scene[get(i)].mapx))-20));
-						set(layer[calc(get(spotaround)+'thumbmap')].oy, calc(calc(stageheight/2)*calc(get(scene[get(i)].mapy))-35));
-						set(layer[calc(get(spotaround)+'thumbmap')].width, 60);
-						set(layer[calc(get(spotaround)+'thumbmap')].height, 40);
-						set(layer[calc(get(spotaround)+'thumbmap')].visible, false);
-						set(layer[calc(get(spotaround)+'thumbmap')].parent, "skin_map");
-						set(layer[calc(get(spotaround)+'thumbmap')].scale, 1.0);
-						set(layer[calc(get(spotaround)+'thumbmap')].distorted, true);
-						set(layer[calc(get(spotaround)+'thumbmap')].zorder, 4);
-						set(layer[calc(get(spotaround)+'thumbmap')].keep, true);
-						
-						set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+'thumbmap')].onclick, get(temp));
-						<!-- Thêm text title -->
-						addlayer(calc(get(spotaround) + '_text'));
-						set(layer[calc(get(spotaround) + '_text')].type, text);
-						set(layer[calc(get(spotaround) + '_text')].html, get(scene[get(i)].title));
-						set(layer[calc(get(spotaround) + '_text')].css, 'text-align:center;color:#fff;font-size:10px;background:none;background-color:0x7777DD;');
-						set(layer[calc(get(spotaround) + '_text')].width, 100);
-						set(layer[calc(get(spotaround)+'_text')].visible, false);
-						set(layer[calc(get(spotaround) + '_text')].parent, "skin_map");
-						set(layer[calc(get(spotaround) + '_text')].height, 20);
-						set(layer[calc(get(spotaround) + '_text')].distorted, true);
-						set(layer[calc(get(spotaround)+'_text')].ox, calc(calc(stagewidth)*calc(get(scene[get(i)].mapx))-40));
-						set(layer[calc(get(spotaround)+'_text')].oy, calc(calc(stageheight/2)*calc(get(scene[get(i)].mapy))));
-						set(layer[calc(get(spotaround) + '_text')].keep, true);
-						set(layer[calc(get(spotaround) + '_text')].zorder, 4);
-						set(layer[calc(get(spotaround) + '_text')].background, false);
-						set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+'_text')].onclick, get(temp));
-						set(temptrue, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", true);'));
-						set(tempfalse, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", false);'));
-						set(layer[calc(get(spotaround)+ 'thumbmap')].onout, get(tempfalse));
-						set(layer[calc(get(spotaround)+ 'map')].onover, get(temptrue));
-						set(layer[calc(get(spotaround)+ '_text')].onout, get(tempfalse));
-					);
-				);
-			);
-			,
-			for(set(i,0), i LT scene.count, inc(i),
-				if(scene[get(i)].mapx AND scene[get(i)].mapy,
-					if( !(scene[get(i)].mapx == get(curx) AND scene[get(i)].mapy == get(cury)),
-						copy(spotaroundscname, scene[get(i)].name);
-						copy(spotaround, scene[get(i)].name );
-						addlayer(calc(get(spotaround)+'map'));
-						set(layer[calc(get(spotaround)+ 'map')].url, skin/icons/here1.png);
-						set(layer[calc(get(spotaround)+ 'map')].type, 'image');
-						set(layer[calc(get(spotaround)+ 'map')].visible, true);
-						set(layer[calc(get(spotaround)+ 'map')].parent, "skin_map");
-						set(layer[calc(get(spotaround)+ 'map')].ox, calc(calc(layer[skin_map_layer].pixelwidth -0) * get(scene[get(i)].mapx)));
-						set(layer[calc(get(spotaround)+ 'map')].oy, calc(calc(layer[skin_map_layer].pixelheight -0)* get(scene[get(i)].mapy)));
-						set(layer[calc(get(spotaround)+ 'map')].width, 20);
-						set(layer[calc(get(spotaround)+ 'map')].height, 20);
-						set(layer[calc(get(spotaround)+ 'map')].zorder, 3);
-						set(temp, calc('skin_loadscene(' + get(spotaroundscname) + ', ' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+ 'map')].onclick, get(temp));
+		copy(thumburl, scene[get(i)].thumburl);
 
-						set(layer[calc(get(spotaround)+ 'map')].onloaded, do_animation(120,120,10));
+		<!-- Tạo thumbnail -->
+		addlayer(calc(get(spotaround)+'thumbmap'));
+		set(layer[calc(get(spotaround)+'thumbmap')].url, get(thumburl));
 
-						copy(thumburl, scene[get(i)].thumburl);
-						
-								<!-- Tạo thumbnail -->
-						addlayer(calc(get(spotaround)+'thumbmap'));
-						set(layer[calc(get(spotaround)+'thumbmap')].url, get(thumburl));
-						
-						set(layer[calc(get(spotaround)+'thumbmap')].type, 'image');
-						set(layer[calc(get(spotaround)+'thumbmap')].ox, -20);
-						set(layer[calc(get(spotaround)+'thumbmap')].oy, -10);
-						set(layer[calc(get(spotaround)+'thumbmap')].width, 60);
-						set(layer[calc(get(spotaround)+'thumbmap')].height, 40);
-						set(layer[calc(get(spotaround)+'thumbmap')].visible, false);
-						set(layer[calc(get(spotaround)+'thumbmap')].parent, calc(get(spotaround)+ 'map'));
-						set(layer[calc(get(spotaround)+'thumbmap')].scale, 1.0);
-						set(layer[calc(get(spotaround)+'thumbmap')].distorted, true);
-						set(layer[calc(get(spotaround)+'thumbmap')].zorder, 4);
-						set(layer[calc(get(spotaround)+'thumbmap')].keep, true);
-						
-						set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+'thumbmap')].onclick, get(temp));
-						<!-- Thêm text title -->
-						addlayer(calc(get(spotaround) + '_text'));
-						set(layer[calc(get(spotaround) + '_text')].type, text);
-						set(layer[calc(get(spotaround) + '_text')].html, get(scene[get(i)].title));
-						set(layer[calc(get(spotaround) + '_text')].css, 'text-align:center;color:#fff;font-size:10px;background:none;background-color:0x7777DD;');
-						set(layer[calc(get(spotaround) + '_text')].width, 100);
-						set(layer[calc(get(spotaround)+'_text')].visible, false);
-						set(layer[calc(get(spotaround) + '_text')].parent, calc(get(spotaround)+ 'map'));
-						set(layer[calc(get(spotaround) + '_text')].height, 20);
-						set(layer[calc(get(spotaround) + '_text')].distorted, true);
-						set(layer[calc(get(spotaround)+'_text')].ox, -40);
-						set(layer[calc(get(spotaround)+'_text')].oy, 30);
-						set(layer[calc(get(spotaround) + '_text')].keep, true);
-						set(layer[calc(get(spotaround) + '_text')].zorder, 4);
-						set(layer[calc(get(spotaround) + '_text')].background, false);
-						set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
-						set(layer[calc(get(spotaround)+'_text')].onclick, get(temp));
-						set(temptrue, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", true);'));
-						set(tempfalse, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", false);'));
-						set(layer[calc(get(spotaround)+ 'thumbmap')].onout, get(tempfalse));
-						set(layer[calc(get(spotaround)+ 'map')].onover, get(temptrue));
-						set(layer[calc(get(spotaround)+ '_text')].onout, get(tempfalse));
-					);
-				);
-			);
+		set(layer[calc(get(spotaround)+'thumbmap')].type, 'image');
+		set(layer[calc(get(spotaround)+'thumbmap')].ox, calc(calc(stagewidth)*calc(get(scene[get(i)].mapx))-20));
+		set(layer[calc(get(spotaround)+'thumbmap')].oy, calc(calc(stageheight/2)*calc(get(scene[get(i)].mapy))-35));
+		set(layer[calc(get(spotaround)+'thumbmap')].width, 60);
+		set(layer[calc(get(spotaround)+'thumbmap')].height, 40);
+		set(layer[calc(get(spotaround)+'thumbmap')].visible, false);
+		set(layer[calc(get(spotaround)+'thumbmap')].parent, "skin_map");
+		set(layer[calc(get(spotaround)+'thumbmap')].scale, 1.0);
+		set(layer[calc(get(spotaround)+'thumbmap')].distorted, true);
+		set(layer[calc(get(spotaround)+'thumbmap')].zorder, 4);
+		set(layer[calc(get(spotaround)+'thumbmap')].keep, true);
+
+		set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+'thumbmap')].onclick, get(temp));
+		<!-- Thêm text title -->
+		addlayer(calc(get(spotaround) + '_text'));
+		set(layer[calc(get(spotaround) + '_text')].type, text);
+		set(layer[calc(get(spotaround) + '_text')].html, get(scene[get(i)].title));
+		set(layer[calc(get(spotaround) + '_text')].css, 'text-align:center;color:#fff;font-size:10px;background:none;background-color:0x7777DD;');
+		set(layer[calc(get(spotaround) + '_text')].width, 100);
+		set(layer[calc(get(spotaround)+'_text')].visible, false);
+		set(layer[calc(get(spotaround) + '_text')].parent, "skin_map");
+		set(layer[calc(get(spotaround) + '_text')].height, 20);
+		set(layer[calc(get(spotaround) + '_text')].distorted, true);
+		set(layer[calc(get(spotaround)+'_text')].ox, calc(calc(stagewidth)*calc(get(scene[get(i)].mapx))-40));
+		set(layer[calc(get(spotaround)+'_text')].oy, calc(calc(stageheight/2)*calc(get(scene[get(i)].mapy))));
+		set(layer[calc(get(spotaround) + '_text')].keep, true);
+		set(layer[calc(get(spotaround) + '_text')].zorder, 4);
+		set(layer[calc(get(spotaround) + '_text')].background, false);
+		set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+'_text')].onclick, get(temp));
+		set(temptrue, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", true);'));
+		set(tempfalse, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", false);'));
+		set(layer[calc(get(spotaround)+ 'thumbmap')].onout, get(tempfalse));
+		set(layer[calc(get(spotaround)+ 'map')].onover, get(temptrue));
+		set(layer[calc(get(spotaround)+ '_text')].onout, get(tempfalse));
+		);
+		);
+		);
+		,
+		for(set(i,0), i LT scene.count, inc(i),
+		if(scene[get(i)].mapx AND scene[get(i)].mapy,
+		if( !(scene[get(i)].mapx == get(curx) AND scene[get(i)].mapy == get(cury)),
+		copy(spotaroundscname, scene[get(i)].name);
+		copy(spotaround, scene[get(i)].name );
+		addlayer(calc(get(spotaround)+'map'));
+		set(layer[calc(get(spotaround)+ 'map')].url, skin/icons/here1.png);
+		set(layer[calc(get(spotaround)+ 'map')].type, 'image');
+		set(layer[calc(get(spotaround)+ 'map')].visible, true);
+		set(layer[calc(get(spotaround)+ 'map')].parent, "skin_map");
+		set(layer[calc(get(spotaround)+ 'map')].ox, calc(calc(layer[skin_map_layer].pixelwidth -0) * get(scene[get(i)].mapx)));
+		set(layer[calc(get(spotaround)+ 'map')].oy, calc(calc(layer[skin_map_layer].pixelheight -0)* get(scene[get(i)].mapy)));
+		set(layer[calc(get(spotaround)+ 'map')].width, 20);
+		set(layer[calc(get(spotaround)+ 'map')].height, 20);
+		set(layer[calc(get(spotaround)+ 'map')].zorder, 3);
+		set(temp, calc('skin_loadscene(' + get(spotaroundscname) + ', ' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+ 'map')].onclick, get(temp));
+
+		set(layer[calc(get(spotaround)+ 'map')].onloaded, do_animation(120,120,10));
+
+		copy(thumburl, scene[get(i)].thumburl);
+
+		<!-- Tạo thumbnail -->
+		addlayer(calc(get(spotaround)+'thumbmap'));
+		set(layer[calc(get(spotaround)+'thumbmap')].url, get(thumburl));
+
+		set(layer[calc(get(spotaround)+'thumbmap')].type, 'image');
+		set(layer[calc(get(spotaround)+'thumbmap')].ox, -20);
+		set(layer[calc(get(spotaround)+'thumbmap')].oy, -10);
+		set(layer[calc(get(spotaround)+'thumbmap')].width, 60);
+		set(layer[calc(get(spotaround)+'thumbmap')].height, 40);
+		set(layer[calc(get(spotaround)+'thumbmap')].visible, false);
+		set(layer[calc(get(spotaround)+'thumbmap')].parent, calc(get(spotaround)+ 'map'));
+		set(layer[calc(get(spotaround)+'thumbmap')].scale, 1.0);
+		set(layer[calc(get(spotaround)+'thumbmap')].distorted, true);
+		set(layer[calc(get(spotaround)+'thumbmap')].zorder, 4);
+		set(layer[calc(get(spotaround)+'thumbmap')].keep, true);
+
+		set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+'thumbmap')].onclick, get(temp));
+		<!-- Thêm text title -->
+		addlayer(calc(get(spotaround) + '_text'));
+		set(layer[calc(get(spotaround) + '_text')].type, text);
+		set(layer[calc(get(spotaround) + '_text')].html, get(scene[get(i)].title));
+		set(layer[calc(get(spotaround) + '_text')].css, 'text-align:center;color:#fff;font-size:10px;background:none;background-color:0x7777DD;');
+		set(layer[calc(get(spotaround) + '_text')].width, 100);
+		set(layer[calc(get(spotaround)+'_text')].visible, false);
+		set(layer[calc(get(spotaround) + '_text')].parent, calc(get(spotaround)+ 'map'));
+		set(layer[calc(get(spotaround) + '_text')].height, 20);
+		set(layer[calc(get(spotaround) + '_text')].distorted, true);
+		set(layer[calc(get(spotaround)+'_text')].ox, -40);
+		set(layer[calc(get(spotaround)+'_text')].oy, 30);
+		set(layer[calc(get(spotaround) + '_text')].keep, true);
+		set(layer[calc(get(spotaround) + '_text')].zorder, 4);
+		set(layer[calc(get(spotaround) + '_text')].background, false);
+		set(temp, calc('skin_loadscene(' + get(spotaround) + ',' + get(skin_settings.loadscene_blend) + ');'));
+		set(layer[calc(get(spotaround)+'_text')].onclick, get(temp));
+		set(temptrue, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", true);'));
+		set(tempfalse, calc('locate_map_hover("' + spotaround + 'thumbmap","' + spotaround + '_text", false);'));
+		set(layer[calc(get(spotaround)+ 'thumbmap')].onout, get(tempfalse));
+		set(layer[calc(get(spotaround)+ 'map')].onover, get(temptrue));
+		set(layer[calc(get(spotaround)+ '_text')].onout, get(tempfalse));
+		);
+		);
+		);
 		)
 	</action>
-	
+
 	<action name="remove_thumb_map" scope="local">
 		set(i, 0);
 		for(set(i, 0), i LT scene.count, inc(i),
-			copy(spotaround, scene[get(i)].name );
-			removelayer(calc(get(spotaround) + 'thumbmap'));
-			removelayer(calc(get(spotaround) + '_text'));
+		copy(spotaround, scene[get(i)].name );
+		removelayer(calc(get(spotaround) + 'thumbmap'));
+		removelayer(calc(get(spotaround) + '_text'));
 		);
 	</action>
-	
+
 	<action name="do_animation" scope="local" args="framewidth, frameheight, framerate">
 		<!-- define local variables -->
 		calc(local.xframes, (caller.imagewidth /framewidth) BOR 0);
 		calc(local.frames, xframes * ((caller.imageheight / frameheight) BOR 0));
 		def(local.frame, integer, 0);
-		
+
 		<!-- set the first frame -->
 		calc(caller.crop, '0|0|' + framewidth + '|' + frameheight);
-		
+
 		<!-- do the animation -->
 		setinterval(calc('crop_anim_' + caller.name), calc(1.0 / framerate),
-			if(caller.loaded,
-				inc(frame);
-				if(frame GE frames, if(caller.onlastframe !== null, callwith(caller, onlastframe() ) ); set(frame,0); );
-				mod(xpos, frame, xframes);
-				div(ypos, frame, xframes);
-				Math.floor(ypos);
-				mul(xpos, framewidth);
-				mul(ypos, frameheight);
-				calc(caller.crop, xpos + '|' + ypos + '|' + framewidth + '|' + frameheight);
-			  ,
-				<!-- stop the interval when the hotspot gets removed -->
-				clearinterval(calc('crop_anim_' + caller.name));
-			);
+		if(caller.loaded,
+		inc(frame);
+		if(frame GE frames, if(caller.onlastframe !== null, callwith(caller, onlastframe() ) ); set(frame,0); );
+		mod(xpos, frame, xframes);
+		div(ypos, frame, xframes);
+		Math.floor(ypos);
+		mul(xpos, framewidth);
+		mul(ypos, frameheight);
+		calc(caller.crop, xpos + '|' + ypos + '|' + framewidth + '|' + frameheight);
+		,
+		<!-- stop the interval when the hotspot gets removed -->
+		clearinterval(calc('crop_anim_' + caller.name));
+		);
 		);
 	</action>
-	
+
 	<action name="start_vr">
 		if(hotspot[thumb_wall].visible,
-			hide_all_thumbs();
-			tween(hotspot[thumb_wall].alpha, 0, 0.5, easeOutExpo);,
-			show_all_thumbs();
-			tween(hotspot[thumb_wall].alpha, 1.0, 0.5, easeOutExpo);
+		hide_all_thumbs();
+		tween(hotspot[thumb_wall].alpha, 0, 0.5, easeOutExpo);,
+		show_all_thumbs();
+		tween(hotspot[thumb_wall].alpha, 1.0, 0.5, easeOutExpo);
 		);
 	</action>
 
@@ -982,13 +1221,13 @@
 		set(view_360, 'sky');
 		cm_littleplanet_view(0, 60);
 		,
-			if(view_360 == 'sky',
-				set(view_360, 'land');
-				cm_littleplanet_view(0, -60);
-			,
-				set(view_360, 'none');
-				cm_littleplanet_view(0, 0);
-			);
+		if(view_360 == 'sky',
+		set(view_360, 'land');
+		cm_littleplanet_view(0, -60);
+		,
+		set(view_360, 'none');
+		cm_littleplanet_view(0, 0);
+		);
 		);
 	</action>
 
@@ -996,13 +1235,13 @@
 		set(view.fovtype, "MFOV");
 
 		if(view_360 != 'none',
-			set(view.stereographic, true);
-			tween(view.fisheye, 1.0, 1.5, easeOutExpo);
-			set(view.fov, 240);
+		set(view.stereographic, true);
+		tween(view.fisheye, 1.0, 1.5, easeOutExpo);
+		set(view.fov, 240);
 		,
-			set(view.stereographic, false);
-			tween(view.fisheye, 0, 0, easeOutExpo);
-			set(view.fov, 120);
+		set(view.stereographic, false);
+		tween(view.fisheye, 0, 0, easeOutExpo);
+		set(view.fov, 120);
 		);
 
 		lookto(%1, %2, get(view.fov), 120, 100, easeOutExpo);
@@ -1010,10 +1249,10 @@
 
 	<action name="show_info" scope="local">
 		if(layer[box].visible,
-			tween(layer[box].alpha, 0, 0.5, default, set(layer[box].visible, false));
+		tween(layer[box].alpha, 0, 0.5, default, set(layer[box].visible, false));
 		,
-			set(layer[box].visible, true);
-			tween(layer[box].alpha, 1.0, 0.5);
+		set(layer[box].visible, true);
+		tween(layer[box].alpha, 1.0, 0.5);
 		);
 
 	</action>
@@ -1022,12 +1261,12 @@
 		addlayer(skin_gyro_ondenied);
 		layer[skin_gyro_ondenied].loadstyle(webvr_button_style);
 		set(layer[skin_gyro_ondenied],
-			align='center',
-			html='Using the gyroscope was denied!',
-			onclick='set(enabled,false); tween(alpha,0,0.5,default,removelayer(get(name)));'
+		align='center',
+		html='Using the gyroscope was denied!',
+		onclick='set(enabled,false); tween(alpha,0,0.5,default,removelayer(get(name)));'
 		);
 		delayedcall(2.0,
-			callwith(layer[skin_gyro_ondenied], onclick(); );
+		callwith(layer[skin_gyro_ondenied], onclick(); );
 		);
 	</action>
 
@@ -1045,82 +1284,82 @@
 	onmousedown="skin_mousedown_event();"
 	ontouchstart="skin_mousedown_event(); "
 	/>
-	
+
 	<action name="skin_mousedown_event" scope="local">
 		if(first_drag,
-			start_audio();
-			set(first_drag, false);
-			set(layer[text_music].html, 'NHẠC NỀN:ON');
-			set(layer[text_info].html, 'GIỚI THIỆU:ON');
+		start_audio();
+		set(first_drag, false);
+		set(layer[text_music].html, 'NHẠC NỀN:ON');
+		set(layer[text_info].html, 'GIỚI THIỆU:ON');
 		);
 		skin_showmap(false);
 	</action>
 
 	<action name="toggle_music" scope="local">
 		if(layer[text_music].html == 'NHẠC NỀN:ON',
-			set(layer[text_music].html, 'NHẠC NỀN:OFF');
-			js(playAudio('off'));
-			,
-			set(layer[text_music].html, 'NHẠC NỀN:ON');
-			js(playAudio('on'));
+		set(layer[text_music].html, 'NHẠC NỀN:OFF');
+		js(playAudio('off'));
+		,
+		set(layer[text_music].html, 'NHẠC NỀN:ON');
+		js(playAudio('on'));
 		);
 	</action>
 
 	<action name="toggle_info" scope="local">
 		if(layer[text_info].html == 'GIỚI THIỆU:ON',
-			set(layer[text_info].html, 'GIỚI THIỆU:OFF');
-			js(playIntro('off'));
-			,
-			set(layer[text_info].html, 'GIỚI THIỆU:ON');
-			js(playIntro('on'));
+		set(layer[text_info].html, 'GIỚI THIỆU:OFF');
+		js(playIntro('off'));
+		,
+		set(layer[text_info].html, 'GIỚI THIỆU:ON');
+		js(playIntro('on'));
 		);
 	</action>
 
 	<!-- skin actions -->
-	
+
 	<action name="skin_onstart_loadscene" scope="local" autorun="onstart">
-		
+
 		<!-- load first scene -->
 		loadscene(calc(isset(startscene) ? startscene : 0), null, MERGE);
 		skin_showmap(false);
 		<!-- set optional startup lookat -->
 		if(isset(startlookat),
-			txtsplit(startlookat, ',', hlookat,vlookat,fov,distortion,architectural);
-			lookat(get(hlookat),get(vlookat),get(fov),get(distortion),get(architectural));
+		txtsplit(startlookat, ',', hlookat,vlookat,fov,distortion,architectural);
+		lookat(get(hlookat),get(vlookat),get(fov),get(distortion),get(architectural));
 		);
 
 	</action>
-	
-	
+
+
 	<action name="skin_startup" scope="local">
-		
+
 		<!-- apply skin settings on startup -->
 		if(skin_settings.thumbs,
-			if(skin_settings.thumbs_opened,
-				set(layer[skin_thumbs].state, 'opened');
-				set(layer[skin_thumbs_container].visible, true);
-			);
-			copy(layer[skin_thumbs].draggable, skin_settings.thumbs_dragging);
-			if(skin_settings.thumbs_onhoverscrolling AND device.mouse,
-				set(layer[skin_thumbs].draggable, false);
-				set(layer[skin_thumbs].onhover_autoscrolling, true);
-			);
+		if(skin_settings.thumbs_opened,
+		set(layer[skin_thumbs].state, 'opened');
+		set(layer[skin_thumbs_container].visible, true);
+		);
+		copy(layer[skin_thumbs].draggable, skin_settings.thumbs_dragging);
+		if(skin_settings.thumbs_onhoverscrolling AND device.mouse,
+		set(layer[skin_thumbs].draggable, false);
+		set(layer[skin_thumbs].onhover_autoscrolling, true);
+		);
 		);
 
 		if(skin_settings.gyro AND !device.desktop,
-			copy(plugin[skin_gyro].url, plugin[skin_gyro].plugin_url);
+		copy(plugin[skin_gyro].url, plugin[skin_gyro].plugin_url);
 		);
 
 		if(skin_settings.maps == true,
-			set(layer[skin_btn_map].visible, true);
+		set(layer[skin_btn_map].visible, true);
 
-			if (skin_settings.maps_loadonfirstuse == false,
-				skin_load_maps_plugin();
-			);
+		if (skin_settings.maps_loadonfirstuse == false,
+		skin_load_maps_plugin();
+		);
 		);
 
 		if(skin_settings.littleplanetintro AND !global.startlookat AND device.webgl,
-			skin_setup_littleplanetintro();
+		skin_setup_littleplanetintro();
 		);
 
 		skin_addthumbs();
@@ -1130,111 +1369,111 @@
 		set(layer[skin_layer].visible, true);
 
 		if(device.mobile or device.tablet,
-			set(layer[btn_next_scene].visible, false);
+		set(layer[btn_next_scene].visible, false);
 		);
 	</action>
-	
+
 
 	<action name="skin_load_maps_plugin">
 		if (!layer[skin_map].url,
-			if(skin_settings.maps_type == 'bing',
-				copy(layer[skin_map].key, skin_settings.maps_bing_api_key);
-				set(layer[skin_map].url, '%VIEWER%/plugins/bingmaps.js');
-			  ,skin_settings.maps_type == 'google',
-			 	copy(layer[skin_map].key, skin_settings.maps_google_api_key);
-				set(layer[skin_map].url, '%VIEWER%/plugins/googlemaps.js');
-			  ,
-				copy(layer[skin_map].tileprovider, skin_settings.maps_type);
-				includexml("%VIEWER%/plugins/krpanomaps.xml",
-					layer[skin_map].loadstyle("krpanomaps");
-				);
-			);
+		if(skin_settings.maps_type == 'bing',
+		copy(layer[skin_map].key, skin_settings.maps_bing_api_key);
+		set(layer[skin_map].url, '%VIEWER%/plugins/bingmaps.js');
+		,skin_settings.maps_type == 'google',
+		copy(layer[skin_map].key, skin_settings.maps_google_api_key);
+		set(layer[skin_map].url, '%VIEWER%/plugins/googlemaps.js');
+		,
+		copy(layer[skin_map].tileprovider, skin_settings.maps_type);
+		includexml("%VIEWER%/plugins/krpanomaps.xml",
+		layer[skin_map].loadstyle("krpanomaps");
+		);
+		);
 		);
 	</action>
-	
+
 
 	<action name="skin_addthumbs" scope="local">
-		
+
 		<!-- build a global array of visible scene thumbnails -->
 		def(global.thumbarray, array);
 		set(thumbcount, 0);
 		for(set(i,0), i LT scene.count, inc(i),
-			if(isvalue(scene[get(i)].thumburl) AND scene[get(i)].skipthumb != true,
-				<!-- link thumbarray[i1] to scene[i2] -->
-				set(thumbarray[get(thumbcount)], get(scene[get(i)]));
-				set(scene[get(i)].sceneindex, get(i));
-				set(scene[get(i)].thumbindex, get(thumbcount));
-				inc(thumbcount);
-			);
+		if(isvalue(scene[get(i)].thumburl) AND scene[get(i)].skipthumb != true,
+		<!-- link thumbarray[i1] to scene[i2] -->
+		set(thumbarray[get(thumbcount)], get(scene[get(i)]));
+		set(scene[get(i)].sceneindex, get(i));
+		set(scene[get(i)].thumbindex, get(thumbcount));
+		inc(thumbcount);
 		);
-		
+		);
+
 		if(skin_settings.thumbs == false,
-			set(layer[skin_btn_thumbs].visible,false);
-		  ,
-			copy(thumbwidth, skin_settings.thumbs_width);
-			copy(thumbheight, skin_settings.thumbs_height);
-			copy(thumbpadding, skin_settings.thumbs_padding);
-			copy(thumbcrop, skin_settings.thumbs_crop);
+		set(layer[skin_btn_thumbs].visible,false);
+		,
+		copy(thumbwidth, skin_settings.thumbs_width);
+		copy(thumbheight, skin_settings.thumbs_height);
+		copy(thumbpadding, skin_settings.thumbs_padding);
+		copy(thumbcrop, skin_settings.thumbs_crop);
 
-			calc(thumbxoffset, thumbwidth + thumbpadding);
-			calc(thumbxcenter, thumbxoffset * 0.5);
-			calc(thumbbarwidth, thumbxoffset * thumbcount + thumbpadding);
-			calc(thumbbarheight, thumbpadding + thumbheight + thumbpadding);
+		calc(thumbxoffset, thumbwidth + thumbpadding);
+		calc(thumbxcenter, thumbxoffset * 0.5);
+		calc(thumbbarwidth, thumbxoffset * thumbcount + thumbpadding);
+		calc(thumbbarheight, thumbpadding + thumbheight + thumbpadding);
 
-			if(skin_settings.thumbs_scrollindicator,
-				copy(layer[skin_thumbs_scrollindicator].y, thumbbarheight);
-				add(thumbbarheight, layer[skin_thumbs_scrollindicator].height);
-			);
-			
-			set(layer[skin_thumbs], width=get(thumbbarwidth), height=get(thumbbarheight) );
+		if(skin_settings.thumbs_scrollindicator,
+		copy(layer[skin_thumbs_scrollindicator].y, thumbbarheight);
+		add(thumbbarheight, layer[skin_thumbs_scrollindicator].height);
+		);
 
-			calc(layer[skin_thumbs_scrollleft].y, thumbbarheight * 0.5);
-			calc(layer[skin_thumbs_scrollright].y, thumbbarheight * 0.5);
+		set(layer[skin_thumbs], width=get(thumbbarwidth), height=get(thumbbarheight) );
 
-			for(set(i,0), i LT thumbcount, inc(i),
-			
-				copy(currentscene, thumbarray[get(i)]);
+		calc(layer[skin_thumbs_scrollleft].y, thumbbarheight * 0.5);
+		calc(layer[skin_thumbs_scrollright].y, thumbbarheight * 0.5);
 
-				calc(thumbname, 'skin_thumb_' + i);
-				addlayer(get(thumbname));
+		for(set(i,0), i LT thumbcount, inc(i),
 
-				set(layer[get(thumbname)],
-					url=get(currentscene.thumburl),
-					keep=true,
-					parent='skin_thumbs',
-					align='lefttop',
-					crop=get(thumbcrop),
-					width=get(thumbwidth),
-					height=get(thumbheight),
-					x=calc(thumbpadding + i*thumbxoffset),
-					y=get(thumbpadding),
-					linkedscene=get(currentscene.name),
-					onclick='copy(layer[skin_thumbborder].parent, name); skin_loadscene(get(linkedscene),get(skin_settings.loadscene_blend));'
-				);
-					
-				set(currentscene, 
-					thumbx=calc(thumbpadding + i*thumbxoffset + thumbxcenter),
-					thumby=get(thumbpadding)
-				);
-					
-				if(skin_settings.tooltips_thumbs,
-					set(layer[get(thumbname)].tooltip, get(currentscene.title) );
-					layer[get(thumbname)].loadstyle(skin_tooltips);
-				);
-					
-				if(skin_settings.thumbs_text,
-					calc(thumbtext, 'skin_thumbtext_' + i);
-					addlayer(get(thumbtext));
-					layer[get(thumbtext)].loadstyle(skin_thumbtext_style);
-					set(layer[get(thumbtext)], keep=true, parent=get(thumbname), html=get(currentscene.title) );
-				);
-			);
-			
-			if(thumbcount == 1,
-				set(layer[skin_thumbs].align, 'lefttop');
-			  ,
-				set(layer[skin_thumbs].align, 'top');
-			);
+		copy(currentscene, thumbarray[get(i)]);
+
+		calc(thumbname, 'skin_thumb_' + i);
+		addlayer(get(thumbname));
+
+		set(layer[get(thumbname)],
+		url=get(currentscene.thumburl),
+		keep=true,
+		parent='skin_thumbs',
+		align='lefttop',
+		crop=get(thumbcrop),
+		width=get(thumbwidth),
+		height=get(thumbheight),
+		x=calc(thumbpadding + i*thumbxoffset),
+		y=get(thumbpadding),
+		linkedscene=get(currentscene.name),
+		onclick='copy(layer[skin_thumbborder].parent, name); skin_loadscene(get(linkedscene),get(skin_settings.loadscene_blend));'
+		);
+
+		set(currentscene,
+		thumbx=calc(thumbpadding + i*thumbxoffset + thumbxcenter),
+		thumby=get(thumbpadding)
+		);
+
+		if(skin_settings.tooltips_thumbs,
+		set(layer[get(thumbname)].tooltip, get(currentscene.title) );
+		layer[get(thumbname)].loadstyle(skin_tooltips);
+		);
+
+		if(skin_settings.thumbs_text,
+		calc(thumbtext, 'skin_thumbtext_' + i);
+		addlayer(get(thumbtext));
+		layer[get(thumbtext)].loadstyle(skin_thumbtext_style);
+		set(layer[get(thumbtext)], keep=true, parent=get(thumbname), html=get(currentscene.title) );
+		);
+		);
+
+		if(thumbcount == 1,
+		set(layer[skin_thumbs].align, 'lefttop');
+		,
+		set(layer[skin_thumbs].align, 'top');
+		);
 		);
 	</action>
 
@@ -1242,17 +1481,17 @@
 	<!-- called from bing- or google-maps plugin onmapready event -->
 	<action name="skin_addmapspots" scope="local">
 		for(set(i,0), i LT scene.count, inc(i),
-			if(scene[get(i)].lat,
-				calc(spotname, 'spot' + i);
-				calc(spotclickevent, 'skin_hidetooltips(); activatespot(' + spotname + '); skin_loadscene(' + scene[get(i)].name + ',get(skin_settings.loadscene_blend)); delayedcall(0.5,skin_showmap(false));' );
-				copy(scene[get(i)].mapspotname, spotname);
-				caller.addspot(get(spotname), get(scene[get(i)].lat), get(scene[get(i)].lng), get(scene[get(i)].heading), false, get(spotclickevent), null);
-				if(skin_settings.tooltips_mapspots,
-					set(layer[skin_map].spot[get(spotname)].tooltip, get(scene[get(i)].title) );
-					txtadd(layer[skin_map].spot[get(spotname)].onover, 'set(hovering,true);',  get(style[skin_tooltips].onover:addevent) );
-					txtadd(layer[skin_map].spot[get(spotname)].onout,  'set(hovering,false);', get(style[skin_tooltips].onout:addevent)  );
-				);
-			);
+		if(scene[get(i)].lat,
+		calc(spotname, 'spot' + i);
+		calc(spotclickevent, 'skin_hidetooltips(); activatespot(' + spotname + '); skin_loadscene(' + scene[get(i)].name + ',get(skin_settings.loadscene_blend)); delayedcall(0.5,skin_showmap(false));' );
+		copy(scene[get(i)].mapspotname, spotname);
+		caller.addspot(get(spotname), get(scene[get(i)].lat), get(scene[get(i)].lng), get(scene[get(i)].heading), false, get(spotclickevent), null);
+		if(skin_settings.tooltips_mapspots,
+		set(layer[skin_map].spot[get(spotname)].tooltip, get(scene[get(i)].title) );
+		txtadd(layer[skin_map].spot[get(spotname)].onover, 'set(hovering,true);',  get(style[skin_tooltips].onover:addevent) );
+		txtadd(layer[skin_map].spot[get(spotname)].onout,  'set(hovering,false);', get(style[skin_tooltips].onout:addevent)  );
+		);
+		);
 		);
 
 		caller.activatespot( calc(xml.scene != null ? scene[get(xml.scene)].mapspotname : 'spot0') );
@@ -1266,37 +1505,37 @@
 		set(view, fovmax=170, limitview=lookto, vlookatmin=90, vlookatmax=90);
 		lookat(calc(global.lpinfo.hlookat - 180), 90, 150, 1, 0, 0);
 		set(events[lp_events].onloadcomplete,
-			delayedcall(0.5,
-				if(lpinfo.scene === xml.scene,
-					set(control.usercontrol, off);
-					set(view, limitview=get(lpinfo.limitview), vlookatmin=null, view.vlookatmax=null);
-					tween(view.hlookat|view.vlookat|view.fov|view.distortion, calc('' + lpinfo.hlookat + '|' + lpinfo.vlookat + '|' + lpinfo.fov + '|' + 0.0), 3.0, easeOutQuad);
-					delayedcall(3.0,
-						set(control.usercontrol, all);
-						tween(view.fovmax, get(lpinfo.fovmax));
-						skin_deeplinking_update_url();
-						delete(global.lpinfo);
-						skin_showskin();
-						if(skin_settings.thumbs AND skin_settings.thumbs_opened, skin_showthumbs() );
-					);
-				  ,
-					delete(global.lpinfo);
-				);
-			);
+		delayedcall(0.5,
+		if(lpinfo.scene === xml.scene,
+		set(control.usercontrol, off);
+		set(view, limitview=get(lpinfo.limitview), vlookatmin=null, view.vlookatmax=null);
+		tween(view.hlookat|view.vlookat|view.fov|view.distortion, calc('' + lpinfo.hlookat + '|' + lpinfo.vlookat + '|' + lpinfo.fov + '|' + 0.0), 3.0, easeOutQuad);
+		delayedcall(3.0,
+		set(control.usercontrol, all);
+		tween(view.fovmax, get(lpinfo.fovmax));
+		skin_deeplinking_update_url();
+		delete(global.lpinfo);
+		skin_showskin();
+		if(skin_settings.thumbs AND skin_settings.thumbs_opened, skin_showthumbs() );
+		);
+		,
+		delete(global.lpinfo);
+		);
+		);
 		);
 	</action>
-	
-	
+
+
 	<action name="skin_lookat" scope="local" args="h, v, fov">
 		if(webvr.isenabled,
-			<!-- adjust the VR prev/next hotspots for the view change -->
-			calc(hlookat_offset, h - view.hlookat);
-			add(hotspot[skin_webvr_prev_scene].ath, hlookat_offset);
-			add(hotspot[skin_webvr_next_scene].ath, hlookat_offset);
+		<!-- adjust the VR prev/next hotspots for the view change -->
+		calc(hlookat_offset, h - view.hlookat);
+		add(hotspot[skin_webvr_prev_scene].ath, hlookat_offset);
+		add(hotspot[skin_webvr_next_scene].ath, hlookat_offset);
 		);
 		if(plugin[skin_gyro].isavailable AND plugin[skin_gyro].enabled,
-			<!-- reset the gyro tracking -->
-			plugin[skin_gyro].resetsensor(get(h));
+		<!-- reset the gyro tracking -->
+		plugin[skin_gyro].resetsensor(get(h));
 		);
 		<!-- change the view -->
 		lookat(get(h), get(v), get(fov));
@@ -1314,9 +1553,9 @@
 		skin_arrange_buttons();
 		<!-- tween(layer[skin_scroll_layer].y,calc(- area.pixelheight / 2), 0, easeOutQuint ); -->
 		if(device.mobile OR device.tablet,
-			if(layer[skin_thumbs].state != 'closed',
-				set(layer[skin_map_layer].y,0);
-			);
+		if(layer[skin_thumbs].state != 'closed',
+		set(layer[skin_map_layer].y,0);
+		);
 		);
 	</action>
 
@@ -1353,28 +1592,28 @@
 		if(show_mapbutton, inc(lpos,40));
 
 		if(show_dirbuttons,
-			copy(layer[skin_btn_navi].x, cpos);
-			inc(cpos,140);
+		copy(layer[skin_btn_navi].x, cpos);
+		inc(cpos,140);
 
-			set(layer[skin_btn_gyro].align, center);
-			copy(layer[skin_btn_gyro].visible, show_gyrobutton);
-			copy(layer[skin_btn_gyro].x, cpos);
-			if(show_gyrobutton, inc(cpos,48));
+		set(layer[skin_btn_gyro].align, center);
+		copy(layer[skin_btn_gyro].visible, show_gyrobutton);
+		copy(layer[skin_btn_gyro].x, cpos);
+		if(show_gyrobutton, inc(cpos,48));
 
-			set(layer[skin_btn_vr].align, center);
-			copy(layer[skin_btn_vr].visible, show_vrbutton);
-			copy(layer[skin_btn_vr].x, cpos);
-			if(show_vrbutton, inc(cpos,80));
-		  ,
-			set(layer[skin_btn_gyro].align, left);
-			copy(layer[skin_btn_gyro].visible, show_gyrobutton);
-			copy(layer[skin_btn_gyro].x, lpos);
-			if(show_gyrobutton, inc(lpos,40));
+		set(layer[skin_btn_vr].align, center);
+		copy(layer[skin_btn_vr].visible, show_vrbutton);
+		copy(layer[skin_btn_vr].x, cpos);
+		if(show_vrbutton, inc(cpos,80));
+		,
+		set(layer[skin_btn_gyro].align, left);
+		copy(layer[skin_btn_gyro].visible, show_gyrobutton);
+		copy(layer[skin_btn_gyro].x, lpos);
+		if(show_gyrobutton, inc(lpos,40));
 
-			set(layer[skin_btn_vr].align, left);
-			copy(layer[skin_btn_vr].visible, show_vrbutton);
-			copy(layer[skin_btn_vr].x, lpos);
-			if(show_vrbutton, inc(lpos,80));
+		set(layer[skin_btn_vr].align, left);
+		copy(layer[skin_btn_vr].visible, show_vrbutton);
+		copy(layer[skin_btn_vr].x, lpos);
+		if(show_vrbutton, inc(lpos,80));
 		);
 
 		copy(layer[skin_btn_hide].x, rpos);
@@ -1388,13 +1627,13 @@
 
 	<action name="skin_updatethumbsview" scope="local" args="scroll">
 		if(layer[skin_thumbs].loaded,
-			set(cursceneindex, 0);
-			if(xml.scene, copy(cursceneindex, scene[get(xml.scene)].index));
-			if(scroll == false,
-				layer[skin_thumbs].setcenter(get(scene[get(cursceneindex)].thumbx), get(scene[get(cursceneindex)].thumby));
-			  ,
-				layer[skin_thumbs].scrolltocenter(get(scene[get(cursceneindex)].thumbx), get(scene[get(cursceneindex)].thumby));
-			);
+		set(cursceneindex, 0);
+		if(xml.scene, copy(cursceneindex, scene[get(xml.scene)].index));
+		if(scroll == false,
+		layer[skin_thumbs].setcenter(get(scene[get(cursceneindex)].thumbx), get(scene[get(cursceneindex)].thumby));
+		,
+		layer[skin_thumbs].scrolltocenter(get(scene[get(cursceneindex)].thumbx), get(scene[get(cursceneindex)].thumby));
+		);
 		);
 	</action>
 
@@ -1403,27 +1642,27 @@
 		copy(padding,skin_settings.thumbs_padding);
 
 		if(skin_settings.thumbs_scrollbuttons,
-			if(caller.loverflow GT 0, set(layer[skin_thumbs_scrollleft].visible,true),  set(layer[skin_thumbs_scrollleft].visible,false) );
-			if(caller.roverflow GT 0, set(layer[skin_thumbs_scrollright].visible,true), set(layer[skin_thumbs_scrollright].visible,false) );
+		if(caller.loverflow GT 0, set(layer[skin_thumbs_scrollleft].visible,true),  set(layer[skin_thumbs_scrollleft].visible,false) );
+		if(caller.roverflow GT 0, set(layer[skin_thumbs_scrollright].visible,true), set(layer[skin_thumbs_scrollright].visible,false) );
 		);
 
 		if(skin_settings.thumbs_scrollindicator,
-			if(caller.woverflow GT 0,
-				set(layer[skin_thumbs_scrollindicator].visible, true);
-				sub(iw,caller.pixelwidth,caller.woverflow);
-				div(pw,iw,caller.pixelwidth);
-				div(px,caller.loverflow,caller.woverflow);
-				mul(pw,iw);
-				copy(layer[skin_thumbs_scrollindicator].width, pw);
-				sub(iw,pw);
-				sub(iw,padding);
-				sub(iw,padding);
-				mul(px,iw);
-				add(px,padding);
-				copy(layer[skin_thumbs_scrollindicator].x, px);
-			  ,
-				set(layer[skin_thumbs_scrollindicator].visible, false);
-			);
+		if(caller.woverflow GT 0,
+		set(layer[skin_thumbs_scrollindicator].visible, true);
+		sub(iw,caller.pixelwidth,caller.woverflow);
+		div(pw,iw,caller.pixelwidth);
+		div(px,caller.loverflow,caller.woverflow);
+		mul(pw,iw);
+		copy(layer[skin_thumbs_scrollindicator].width, pw);
+		sub(iw,pw);
+		sub(iw,padding);
+		sub(iw,padding);
+		mul(px,iw);
+		add(px,padding);
+		copy(layer[skin_thumbs_scrollindicator].x, px);
+		,
+		set(layer[skin_thumbs_scrollindicator].visible, false);
+		);
 		);
 	</action>
 
@@ -1431,77 +1670,78 @@
 	<action name="skin_update_scene_infos" scope="local">
 		if(xml.scene !== null AND scene[get(xml.scene)].index GE 0,
 
-			if(skin_settings.title,
-				if(global.title, calc(layer[skin_title].html, 'CHÙA PHÙNG KHOANG' + ' - ' + scene[get(xml.scene)].title); , copy(layer[skin_title].html, scene[get(xml.scene)].title ); );
-				delayedcall(0.1, set(layer[skin_title].visible,true) );
-			);
+		if(skin_settings.title,
+		set(layer[skin_title].html, 'CỔNG TRƯỜNG');
+		delayedcall(0.1, set(layer[skin_title].visible,true));
+		);
 
-			if(skin_settings.thumbs_loop == false,
-				if(scene[get(xml.scene)].index GT 0,
-					set(layer[skin_btn_prev], enabled=true, alpha=1.0);
-				  ,
-					set(layer[skin_btn_prev], enabled=false, alpha=0.3);
-				);
 
-				sub(lastsceneindex, scene.count, 1);
-				if(scene[get(xml.scene)].index LT lastsceneindex,
-					set(layer[skin_btn_next], enabled=true, alpha=1.0);
-				  ,
-					set(layer[skin_btn_next], enabled=false, alpha=0.3);
-				);
-			  ,
-				if(scene.count GT 1,
-					set(layer[skin_btn_prev], enabled=true, alpha=1.0);
-					set(layer[skin_btn_next], enabled=true, alpha=1.0);
-				  ,
-					set(layer[skin_btn_prev], enabled=false, alpha=0.3);
-					set(layer[skin_btn_next], enabled=false, alpha=0.3);
-				);
-			);
+		if(skin_settings.thumbs_loop == false,
+		if(scene[get(xml.scene)].index GT 0,
+		set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+		,
+		set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+		);
 
-			if(scene.count GT 1,
-				set(layer[skin_btn_prev_fs].visible, true);
-				set(layer[skin_btn_next_fs].visible, true);
-			  ,
-				set(layer[skin_btn_prev_fs].visible, false);
-				set(layer[skin_btn_next_fs].visible, false);
-			);
+		sub(lastsceneindex, scene.count, 1);
+		if(scene[get(xml.scene)].index LT lastsceneindex,
+		set(layer[skin_btn_next], enabled=true, alpha=1.0);
+		,
+		set(layer[skin_btn_next], enabled=false, alpha=0.3);
+		);
+		,
+		if(scene.count GT 1,
+		set(layer[skin_btn_prev], enabled=true, alpha=1.0);
+		set(layer[skin_btn_next], enabled=true, alpha=1.0);
+		,
+		set(layer[skin_btn_prev], enabled=false, alpha=0.3);
+		set(layer[skin_btn_next], enabled=false, alpha=0.3);
+		);
+		);
 
-			calc(parentname, 'skin_thumb_' + scene[get(xml.scene)].thumbindex);
-			if(scene[get(xml.scene)].thumburl AND scene[get(xml.scene)].skipthumb != true AND layer[get(parentname)],
-				set(layer[skin_thumbborder], parent=get(parentname), visible=true);
-			  ,
-				set(layer[skin_thumbborder].visible, false);
-			);
+		if(scene.count GT 1,
+		set(layer[skin_btn_prev_fs].visible, true);
+		set(layer[skin_btn_next_fs].visible, true);
+		,
+		set(layer[skin_btn_prev_fs].visible, false);
+		set(layer[skin_btn_next_fs].visible, false);
+		);
 
-			if(scene[get(xml.scene)].mapspotname,
-				layer[skin_map].activatespot(get(scene[get(xml.scene)].mapspotname));
-				layer[skin_map].pantospot(get(scene[get(xml.scene)].mapspotname));
-				if( isvalue(scene[get(xml.scene)].mapzoom),
-					tween(layer[skin_map].zoom, get(scene[get(xml.scene)].mapzoom), 0.5);
-				);
-			);
+		calc(parentname, 'skin_thumb_' + scene[get(xml.scene)].thumbindex);
+		if(scene[get(xml.scene)].thumburl AND scene[get(xml.scene)].skipthumb != true AND layer[get(parentname)],
+		set(layer[skin_thumbborder], parent=get(parentname), visible=true);
+		,
+		set(layer[skin_thumbborder].visible, false);
+		);
 
-			if(plugin[skin_gyro].isavailable == true AND (view.vlookatrange == 180 OR global.lpinfo.scene === xml.scene),
-				set(layer[skin_btn_gyro].visible, true);
-			  ,
-				set(layer[skin_btn_gyro].visible, false)
-			);
-			
-			if(scene[get(xml.scene)].isvideopano AND plugin[video] !== null,
-				skin_video_addcontrols();
-			  ,
-				skin_video_removecontrols();
-			);
+		if(scene[get(xml.scene)].mapspotname,
+		layer[skin_map].activatespot(get(scene[get(xml.scene)].mapspotname));
+		layer[skin_map].pantospot(get(scene[get(xml.scene)].mapspotname));
+		if( isvalue(scene[get(xml.scene)].mapzoom),
+		tween(layer[skin_map].zoom, get(scene[get(xml.scene)].mapzoom), 0.5);
+		);
+		);
+
+		if(plugin[skin_gyro].isavailable == true AND (view.vlookatrange == 180 OR global.lpinfo.scene === xml.scene),
+		set(layer[skin_btn_gyro].visible, true);
+		,
+		set(layer[skin_btn_gyro].visible, false)
+		);
+
+		if(scene[get(xml.scene)].isvideopano AND plugin[video] !== null,
+		skin_video_addcontrols();
+		,
+		skin_video_removecontrols();
+		);
 		);
 	</action>
-	
+
 
 	<action name="skin_gotoscene" scope="local" args="newscene">
 		if(scene[get(newscene)],
-			copy(cursceneindex, scene[get(xml.scene)].index);
-			copy(newsceneindex, scene[get(newscene)].index);
-			skin_loadscene(get(newsceneindex), calc(newsceneindex LT cursceneindex ? skin_settings.loadscene_blend_prev : (newsceneindex GT cursceneindex ? skin_settings.loadscene_blend_next : skin_settings.loadscene_blend)) );
+		copy(cursceneindex, scene[get(xml.scene)].index);
+		copy(newsceneindex, scene[get(newscene)].index);
+		skin_loadscene(get(newsceneindex), calc(newsceneindex LT cursceneindex ? skin_settings.loadscene_blend_prev : (newsceneindex GT cursceneindex ? skin_settings.loadscene_blend_next : skin_settings.loadscene_blend)) );
 		);
 	</action>
 
@@ -1509,18 +1749,18 @@
 	<action name="skin_nextscene" scope="local" args="indexadd">
 		set(newscenename, null);
 		if(isset(scene[get(xml.scene)].thumbindex),
-			add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
-			if(newsceneindex GE 0 AND newsceneindex LT thumbarray.length,
-				set(newscenename, get(thumbarray[get(newsceneindex)].name));
-			);
-		  ,
-			add(newsceneindex, scene[get(xml.scene)].index, indexadd);
-			if(newsceneindex GE 0 AND newsceneindex LT scene.count,
-				set(newscenename, get(scene[get(newsceneindex)].name));
-			);
+		add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
+		if(newsceneindex GE 0 AND newsceneindex LT thumbarray.length,
+		set(newscenename, get(thumbarray[get(newsceneindex)].name));
+		);
+		,
+		add(newsceneindex, scene[get(xml.scene)].index, indexadd);
+		if(newsceneindex GE 0 AND newsceneindex LT scene.count,
+		set(newscenename, get(scene[get(newsceneindex)].name));
+		);
 		);
 		if(newscenename != null,
-			skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+		skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
 		);
 	</action>
 
@@ -1528,98 +1768,98 @@
 	<action name="skin_nextscene_loop" scope="local" args="indexadd">
 		set(newscenename, null);
 		if(isset(scene[get(xml.scene)].thumbindex),
-			sub(lastsceneindex, thumbarray.length, 1);
-			add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
-			if(newsceneindex LT 0, copy(newsceneindex,lastsceneindex));
-			if(newsceneindex GT lastsceneindex, set(newsceneindex,0));
-			set(newscenename, get(thumbarray[get(newsceneindex)].name));
-		  ,
-			add(newsceneindex, scene[get(xml.scene)].index, indexadd);
-			sub(lastsceneindex, scene.count, 1);
-			if(newsceneindex LT 0, copy(newsceneindex,lastsceneindex));
-			if(newsceneindex GT lastsceneindex, set(newsceneindex,0));
-			set(newscenename, get(scene[get(newsceneindex)].name));
+		sub(lastsceneindex, thumbarray.length, 1);
+		add(newsceneindex, scene[get(xml.scene)].thumbindex, indexadd);
+		if(newsceneindex LT 0, copy(newsceneindex,lastsceneindex));
+		if(newsceneindex GT lastsceneindex, set(newsceneindex,0));
+		set(newscenename, get(thumbarray[get(newsceneindex)].name));
+		,
+		add(newsceneindex, scene[get(xml.scene)].index, indexadd);
+		sub(lastsceneindex, scene.count, 1);
+		if(newsceneindex LT 0, copy(newsceneindex,lastsceneindex));
+		if(newsceneindex GT lastsceneindex, set(newsceneindex,0));
+		set(newscenename, get(scene[get(newsceneindex)].name));
 		);
 		if(newscenename != null,
-			skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
+		skin_loadscene(get(newscenename), calc(indexadd LT 0 ? skin_settings.loadscene_blend_prev : skin_settings.loadscene_blend_next));
 		);
 	</action>
 
 
 	<action name="skin_loadscene" scope="local" args="newscenenameorindex, blendmode">
 		if(webvr.isenabled AND scene.count GT 1,
-			set(hotspot[skin_webvr_prev_scene].visible, false);
-			set(hotspot[skin_webvr_next_scene].visible, false);
+		set(hotspot[skin_webvr_prev_scene].visible, false);
+		set(hotspot[skin_webvr_next_scene].visible, false);
 		);
 
 		calc(parentname, 'skin_thumb_' + scene[get(newscenenameorindex)].thumbindex);
 		if(scene[get(newscenenameorindex)].thumburl AND scene[get(newscenenameorindex)].skipthumb != true AND layer[get(parentname)],
-			set(layer[skin_thumbborder], parent=get(parentname), visible=true);
-		  ,
-			set(layer[skin_thumbborder].visible, false);
+		set(layer[skin_thumbborder], parent=get(parentname), visible=true);
+		,
+		set(layer[skin_thumbborder].visible, false);
 		);
-		
+
 		layer[skin_thumbs].scrolltocenter(get(scene[get(newscenenameorindex)].thumbx), get(scene[get(newscenenameorindex)].thumby));
-		
-		if(blendmode == null, 
-			blendmode = skin_settings.loadscene_blend;
+
+		if(blendmode == null,
+		blendmode = skin_settings.loadscene_blend;
 		);
-    	set(global.scence_array[get(global.scence_array.count)], get(scene[get(xml.scene)].name));
+		set(global.scence_array[get(global.scence_array.count)], get(scene[get(xml.scene)].name));
 		set(global.scence_array.count, calc(global.scence_array.count + 1));
 		loadscene(get(scene[get(newscenenameorindex)].name), null, get(skin_settings.loadscene_flags), get(blendmode));
 	</action>
 
 	<action name="go_back" scope="local">
 		if(global.scence_array.count GT 0,
-			set(lastscene, get(global.scence_array[get(calc(global.scence_array.count - 1))]));
-			if(get(lastscene) != null,
-				loadscene(get(scene[get(lastscene)].name), null, get(skin_settings.loadscene_flags), get(skin_settings.loadscene_blend_prev));
-				set(global.scence_array.count, calc(global.scence_array.count - 1));
-			);
+		set(lastscene, get(global.scence_array[get(calc(global.scence_array.count - 1))]));
+		if(get(lastscene) != null,
+		loadscene(get(scene[get(lastscene)].name), null, get(skin_settings.loadscene_flags), get(skin_settings.loadscene_blend_prev));
+		set(global.scence_array.count, calc(global.scence_array.count - 1));
+		);
 		);
 	</action>
-	
+
 	<action name="skin_loadtour" scope="local" args="xmlpath, startscene, flags, blendmode">
 		<!-- remove the current thumbs -->
 		set(layer[skin_thumbborder], parent=null, visible=false);
 		calc(i,layer.count-1);
 		loop(i GE 0,
-			if (indexof(layer[get(i)].name, 'skin_thumb_') == 0,
-				removelayer(get(i),true);
-			);
-			dec(i),
+		if (indexof(layer[get(i)].name, 'skin_thumb_') == 0,
+		removelayer(get(i),true);
 		);
-		
+		dec(i),
+		);
+
 		<!-- disable deeplinking as it wouldn't work anymore with another tour -->
 		skin_settings.deeplinking = false;
-		
+
 		if (startscene == null, startscene = 0; );
 		if (flags == null, flags = skin_settings.loadscene_flags; );
 		if (blendmode == null, blendmode = skin_settings.loadscene_blend; );
-		
+
 		flags = flags + '|ONLYSCENES';
-		
+
 		loadpanoscene(get(xmlpath), get(startscene), null, get(flags), get(blendmode));
 		skin_addthumbs();
-		
+
 		set(layer[skin_thumbborder], parent=calc('skin_thumb_' + scene[get(xml.scene)].index), visible=true);
 		layer[skin_thumbs].setcenter(get(scene[get(xml.scene)].thumbx), get(scene[get(xml.scene)].thumby));
 	</action>
 
 	<action name="skin_showloading" scope="private:SKINLOADINGCHECK" args="state">
 		if(state == true AND global.display.stereo == false,
-			<!-- start loading -->
-			set(loadingstate, 1);
-			delayedcall(2.0,
-				if(loadingstate == 1,
-					<!-- after 2.0 seconds still not loaded? => show the loading text -->
-					set(global.layer[skin_loadingtext].visible, true);
-				);
-			);
-		  ,
-			<!-- stop loading -->
-			set(loadingstate, 2);
-			set(global.layer[skin_loadingtext].visible, false);
+		<!-- start loading -->
+		set(loadingstate, 1);
+		delayedcall(2.0,
+		if(loadingstate == 1,
+		<!-- after 2.0 seconds still not loaded? => show the loading text -->
+		set(global.layer[skin_loadingtext].visible, true);
+		);
+		);
+		,
+		<!-- stop loading -->
+		set(loadingstate, 2);
+		set(global.layer[skin_loadingtext].visible, false);
 		);
 	</action>
 
@@ -1631,25 +1871,25 @@
 
 	<action name="skin_buttonglow" scope="local" args="layertoglow, strength">
 		if(layertoglow != null,
-			if(strength == null, strength=0.7; );
-			parentlayer = layer[get(layertoglow)];
-			if(parentlayer.scalechildren, layer[skin_buttonglow].scale = 1.0/parentlayer.scale );
-			set(layer[skin_buttonglow], parent=get(layertoglow), visible=true);
-			tween(layer[skin_buttonglow].alpha, get(strength), 0.07);
-		  ,
-			tween(layer[skin_buttonglow].alpha, 0.0, 0.1, default, set(layer[skin_buttonglow], parent=null, visible=false); );
+		if(strength == null, strength=0.7; );
+		parentlayer = layer[get(layertoglow)];
+		if(parentlayer.scalechildren, layer[skin_buttonglow].scale = 1.0/parentlayer.scale );
+		set(layer[skin_buttonglow], parent=get(layertoglow), visible=true);
+		tween(layer[skin_buttonglow].alpha, get(strength), 0.07);
+		,
+		tween(layer[skin_buttonglow].alpha, 0.0, 0.1, default, set(layer[skin_buttonglow], parent=null, visible=false); );
 		);
 	</action>
 
 	<action name="skin_hover" scope="local" args="layertoglow, strength, children">
 		if(layertoglow != null,
-			if(strength == null, strength=0.7; );
-			parentlayer = layer[get(layertoglow)];
-			set(layer[get(layertoglow)].bgcolor, 0x8a479c);
-			set(layer[get(layertoglow)].bgalpha, 1.0);
-		  ,
-			set(layer[get(children)].background, false);
-			set(layer[get(children)].bgalpha, 0.0);
+		if(strength == null, strength=0.7; );
+		parentlayer = layer[get(layertoglow)];
+		set(layer[get(layertoglow)].bgcolor, 0x8a479c);
+		set(layer[get(layertoglow)].bgalpha, 1.0);
+		,
+		set(layer[get(children)].background, false);
+		set(layer[get(children)].bgalpha, 0.0);
 		);
 	</action>
 
@@ -1663,15 +1903,15 @@
 
 	<action name="skin_calc_opened_closed">
 		if(layer[get(name)].y_closed === null,
-			set(layer[get(name)].y_opened, get(layer[get(name)].x));
-			set(layer[get(name)].y_closed, calc(layer[get(name)].x - skin_settings.controlbar_offset - skin_settings.controlbar_height + skin_settings.controlbar_offset_closed));
+		set(layer[get(name)].y_opened, get(layer[get(name)].x));
+		set(layer[get(name)].y_closed, calc(layer[get(name)].x - skin_settings.controlbar_offset - skin_settings.controlbar_height + skin_settings.controlbar_offset_closed));
 		);
 	</action>
 
 
 	<action name="skin_hideskin" scope="local" args="hidetimemode">
 		calc(hidetime, hidetimemode == 'instant' ? 0.0 : 0.5);
-		
+
 		callwith(layer[skin_scroll_window],   skin_calc_opened_closed() );
 		callwith(layer[skin_splitter_bottom], skin_calc_opened_closed() );
 		callwith(layer[skin_control_bar],     skin_calc_opened_closed() );
@@ -1694,66 +1934,107 @@
 		set(layer[skin_btn_show_menu].visible, true);
 		delayedcall(skin_btn_show_alpha, get(hidetime), tween(layer[skin_btn_show_menu].alpha, 0.85, 0.85); );
 	</action>
+	<!--Chức năng ẩn menu slide bên trái-->
+	<action name="toggle_left_menu_display">
+		if(layer[place_list_group].visible == false,
+		set(layer[place_list_group].visible, true);
+		tween(layer[place_list_group].alpha, 1.0, 0.3);
 
+		tween(layer[bg_orange].height, 250, 0.3);
+
+		tween(layer[icon_back].rotate, 180, 0.3);
+		,
+		tween(layer[place_list_group].alpha, 0.0, 0.3, default, set(layer[place_list_group].visible, false));
+
+		tween(layer[bg_orange].height, 44, 0.3);
+
+		tween(layer[icon_back].rotate, 0, 0.3);
+		);
+	</action>
 	<!--chức năng ẩn menu theo bên phải mẫu-->
 	<action name="toggle_control_buttons">
-    if(layer[skin_btn_prev].alpha == 1.0,
-        tween(layer[skin_btn_prev].alpha, 0.0, 0.25);
-        tween(layer[btn_view].alpha, 0.0, 0.25);
-        tween(layer[btn_music].alpha, 0.0, 0.25);
-        tween(layer[btn_info].alpha, 0.0, 0.25);
-        tween(layer[btn_info_circle].alpha, 0.0, 0.25);
-        tween(layer[btn_map].alpha, 0.0, 0.25);
-        tween(layer[btn_menu].alpha, 0.0, 0.25);
-        tween(layer[btn_360].alpha, 0.0, 0.25);
-        tween(layer[btn_vr].alpha, 0.0, 0.25);
-        tween(layer[btn_photo].alpha, 0.0, 0.25);
-        tween(layer[btn_auto].alpha, 0.0, 0.25);
-        tween(layer[btn_full].alpha, 0.0, 0.25);
+		if(layer[skin_btn_prev].alpha == 1.0,
+		tween(layer[skin_btn_prev].alpha, 0.0, 0.25);
+		tween(layer[btn_view].alpha, 0.0, 0.25);
+		tween(layer[btn_menu].alpha, 0.0, 0.25);
+		tween(layer[btn_360].alpha, 0.0, 0.25);
+		tween(layer[btn_vr].alpha, 0.0, 0.25);
+		tween(layer[btn_photo].alpha, 0.0, 0.25);
+		tween(layer[btn_auto].alpha, 0.0, 0.25);
+		tween(layer[btn_full].alpha, 0.0, 0.25);
 
-        
-        delayedcall(0.25, 
-            set(layer[skin_btn_prev].visible, false);
-            set(layer[btn_view].visible, false);
-            set(layer[btn_music].visible, false);
-            set(layer[btn_info].visible, false);
-            set(layer[btn_info_circle].visible, false);
-            set(layer[btn_map].visible, false);
-            set(layer[btn_menu].visible, false);
-            set(layer[btn_360].visible, false);
-            set(layer[btn_vr].visible, false);
-			set(layer[btn_photo].visible, false);
-            set(layer[btn_auto].visible, false);
-            set(layer[btn_full].visible, false);
-        );
-      ,
-        set(layer[skin_btn_prev].visible, true);
-        set(layer[btn_view].visible, true);
-        set(layer[btn_music].visible, true);
-        set(layer[btn_info].visible, true);
-        set(layer[btn_info_circle].visible, true);
-        set(layer[btn_map].visible, true);
-        set(layer[btn_menu].visible, true);
-        set(layer[btn_360].visible, true);
-        set(layer[btn_vr].visible, true);
+
+		delayedcall(0.25,
+		set(layer[skin_btn_prev].visible, false);
+		set(layer[btn_view].visible, false);
+		set(layer[btn_info].visible, false);
+		set(layer[btn_menu].visible, false);
+		set(layer[btn_360].visible, false);
+		set(layer[btn_vr].visible, false);
+		set(layer[btn_photo].visible, false);
+		set(layer[btn_auto].visible, false);
+		set(layer[btn_full].visible, false);
+		);
+		,
+		set(layer[skin_btn_prev].visible, true);
+		set(layer[btn_view].visible, true);
+		set(layer[btn_info].visible, true);
+		set(layer[btn_menu].visible, true);
+		set(layer[btn_360].visible, true);
+		set(layer[btn_vr].visible, true);
 		set(layer[btn_photo].visible, true);
-        set(layer[btn_auto].visible, true);
-        set(layer[btn_full].visible, true);
+		set(layer[btn_auto].visible, true);
+		set(layer[btn_full].visible, true);
 
-        tween(layer[skin_btn_prev].alpha, 1.0, 0.25);
-        tween(layer[btn_view].alpha, 1.0, 0.25);
-        tween(layer[btn_music].alpha, 1.0, 0.25);
-        tween(layer[btn_info].alpha, 1.0, 0.25);
-        tween(layer[btn_info_circle].alpha, 1.0, 0.25);
-        tween(layer[btn_map].alpha, 1.0, 0.25);
-        tween(layer[btn_menu].alpha, 1.0, 0.25);
-        tween(layer[btn_360].alpha, 1.0, 0.25);
-        tween(layer[btn_vr].alpha, 1.0, 0.25);
+		tween(layer[skin_btn_prev].alpha, 1.0, 0.25);
+		tween(layer[btn_view].alpha, 1.0, 0.25);
+		tween(layer[btn_info].alpha, 1.0, 0.25);
+		tween(layer[btn_menu].alpha, 1.0, 0.25);
+		tween(layer[btn_360].alpha, 1.0, 0.25);
+		tween(layer[btn_vr].alpha, 1.0, 0.25);
 		tween(layer[btn_photo].alpha, 1.0, 0.25);
-        tween(layer[btn_auto].alpha, 1.0, 0.25);
-        tween(layer[btn_full].alpha, 1.0, 0.25);
+		tween(layer[btn_auto].alpha, 1.0, 0.25);
+		tween(layer[btn_full].alpha, 1.0, 0.25);
+		);
+	</action>
+
+	<!-- <action name="filter_scenes_by_tag">
+    set(target_tag, %1);
+    
+    for(set(i,0), i LT scene.count, inc(i),
+        if(scene[get(i)].tag == target_tag,
+            set(scene[get(i)].showinthumbs, true);
+        ,
+            set(scene[get(i)].showinthumbs, false);
+        );
     );
+    
+    if(skin_settings.thumbs, 
+        copy(layer[skin_thumbs].visible, skin_settings.thumbs); 
+    );
+    skin_updatescroll();
 </action>
+
+	<action name="update_menu_active">
+    for(set(i,0), i LT layer.count, inc(i),
+        if(layer[get(i)].style == 'indicator_style', 
+            set(layer[get(i)].bgcolor, 0xFFFFFF); 
+        );
+        if(layer[get(i)].style == 'menu_text', 
+            set(layer[get(i)].css, 'font-family:Arial; font-size:14px; color:#ffffff;'); 
+        );
+    );
+
+    for(set(j,0), j LT layer[%1].children.count, inc(j),
+        set(c_name, get(layer[%1].children[get(j)].name));
+        
+        if(layer[get(c_name)].style == 'indicator_style',
+            set(layer[get(c_name)].bgcolor, 0xFFBC33); );
+        
+        if(layer[get(c_name)].style == 'menu_text',
+            set(layer[get(c_name)].css, 'font-family:Arial; font-size:14px; color:#FFBC33;'); );
+    );
+</action> -->
 
 	<action name="skin_showskin">
 		tween(layer[skin_scroll_window  ].x, get(layer[skin_scroll_window  ].y_opened));
@@ -1773,7 +2054,7 @@
 	</action>
 
 
-	<action name="skin_showthumbs" scope="local" args="show">
+	<!-- <action name="skin_showthumbs" scope="local" args="show">
 		if(show == null, if(layer[skin_thumbs].state == 'closed', set(show,true), set(show,false)); );
 		if(show,
 			set(layer[skin_thumbs].state, 'opened');
@@ -1787,51 +2068,109 @@
 			tween(layer[skin_thumbs].alpha, 0.0, 0.25, easeOutQuint);
 			tween(layer[skin_scroll_layer].y, calc(- area.pixelheight / 2), 0.5, easeOutQuint, set(layer[skin_thumbs_container].visible, false););
 		);
+	</action> -->
+	<action name="skin_showthumbs" scope="local" args="tag">
+
+		<!-- ===============================
+         1. FILTER SCENE BẰNG THUMBVISIBLE
+         =============================== -->
+
+		if(tag == null,
+		for(set(i,0), i LT scene.count, inc(i),
+		set(scene[get(i)].thumbvisible, true);
+		);
+		,
+		for(set(i,0), i LT scene.count, inc(i),
+		if(scene[get(i)].tags AND scene[get(i)].tags.indexof(tag) GE 0,
+		set(scene[get(i)].thumbvisible, true);
+		,
+		set(scene[get(i)].thumbvisible, false);
+		);
+		);
+		);
+
+		<!-- ===============================
+         2. BẮT BUỘC RELOAD THUMBS
+         =============================== -->
+
+		skin_reloadthumbs();
+
+		<!-- ===============================
+         3. MỞ / ĐÓNG PANEL (GIỮ NGUYÊN)
+         =============================== -->
+
+		if(layer[skin_thumbs].state == 'closed',
+		set(show,true);
+		,
+		set(show,false);
+		);
+
+		if(show,
+		set(layer[skin_thumbs].state, 'opened');
+		tween(layer[skin_thumbs].alpha, 1.0, 0.25);
+		tween(layer[skin_scroll_layer].y,
+		calc(- area.pixelheight / 2 + layer[skin_thumbs].height + 65),
+		0.5, easeOutQuint);
+		set(layer[skin_thumbs_container].visible, true);
+		tween(layer[skin_thumbs_container].alpha, 1.0, 0.25);
+		tween(layer[skin_map].alpha, 0.0, 0.25,
+		default, set(layer[skin_map].visible,false));
+		,
+		set(layer[skin_thumbs].state, 'closed');
+		tween(layer[skin_thumbs].alpha, 0.0, 0.25, easeOutQuint);
+		tween(layer[skin_scroll_layer].y,
+		calc(- area.pixelheight / 2),
+		0.5, easeOutQuint,
+		set(layer[skin_thumbs_container].visible, false);
+		);
+		);
+
 	</action>
 
 
+
 	<action name="skin_showmap" scope="local" args="show">
-		if(show == null, 
-			if(layer[skin_map].state == 'closed'
-				, 
-				set(show,true); 
-				if(device.mobile OR device.tablet,
-					skin_hideskin();
-					tween(layer[skin_scroll_window].x,   0);
-					set(layer[skin_map_layer].oy, -50%);
-					set(layer[skin_map_layer].width, 100%);
-					set(layer[skin_map_layer].height, 50%);
-					set(layer[skin_map_container].width, 100%);
-					set(layer[skin_map_container].height, 100%);
-					set(layer[skin_map].width, 100%);
-					set(layer[skin_map].height, 100%);
-					set(layer[skin_map_layer].alpha, 1);
-					set(layer[skin_btn_show_menu].visible, false);
-				)
-				,
-				set(show,false);
-			); 
+		if(show == null,
+		if(layer[skin_map].state == 'closed'
+		,
+		set(show,true);
+		if(device.mobile OR device.tablet,
+		skin_hideskin();
+		tween(layer[skin_scroll_window].x,   0);
+		set(layer[skin_map_layer].oy, -50%);
+		set(layer[skin_map_layer].width, 100%);
+		set(layer[skin_map_layer].height, 50%);
+		set(layer[skin_map_container].width, 100%);
+		set(layer[skin_map_container].height, 100%);
+		set(layer[skin_map].width, 100%);
+		set(layer[skin_map].height, 100%);
+		set(layer[skin_map_layer].alpha, 1);
+		set(layer[skin_btn_show_menu].visible, false);
+		)
+		,
+		set(show,false);
+		);
 		);
 		if(show,
-			skin_load_maps_plugin();
-			tween(layer[skin_thumbs_container].alpha, 0.0, 0.25, default, set(layer[skin_thumbs_container].visible,false));
-			set(layer[skin_map].visible, true);
-			tween(layer[skin_map].alpha, 1.0, 0.25);
-			set(layer[skin_map].state, 'opened');
-			calc(hh, area.pixelheight / 2 - skin_settings.controlbar_offset - layer[skin_control_bar].height + 32);
-			calc(layer[skin_map].height, hh - skin_settings.controlbar_overlap);
-			tween(layer[skin_map_layer].y, 0);
-		  ,
-		  	if(layer[skin_map].state != 'closed',
-				set(layer[skin_map].state, 'closed');
-				tween(layer[skin_map].alpha, 0.0, 0.5, easeOutQuint);
-				tween(layer[skin_map_layer].y, calc(- area.pixelheight / 2-50), 0.5, easeOutQuint, set(layer[skin_map].visible,false) );
-				if(device.mobile OR device.tablet,
-					tween(layer[skin_map_layer].y, calc(- area.pixelheight / 2-100), 0.5, easeOutQuint, set(layer[skin_map].visible,false) );
-				)
-				
-			);
-			set(layer[skin_btn_show_menu].visible, true);
+		skin_load_maps_plugin();
+		tween(layer[skin_thumbs_container].alpha, 0.0, 0.25, default, set(layer[skin_thumbs_container].visible,false));
+		set(layer[skin_map].visible, true);
+		tween(layer[skin_map].alpha, 1.0, 0.25);
+		set(layer[skin_map].state, 'opened');
+		calc(hh, area.pixelheight / 2 - skin_settings.controlbar_offset - layer[skin_control_bar].height + 32);
+		calc(layer[skin_map].height, hh - skin_settings.controlbar_overlap);
+		tween(layer[skin_map_layer].y, 0);
+		,
+		if(layer[skin_map].state != 'closed',
+		set(layer[skin_map].state, 'closed');
+		tween(layer[skin_map].alpha, 0.0, 0.5, easeOutQuint);
+		tween(layer[skin_map_layer].y, calc(- area.pixelheight / 2-50), 0.5, easeOutQuint, set(layer[skin_map].visible,false) );
+		if(device.mobile OR device.tablet,
+		tween(layer[skin_map_layer].y, calc(- area.pixelheight / 2-100), 0.5, easeOutQuint, set(layer[skin_map].visible,false) );
+		)
+
+		);
+		set(layer[skin_btn_show_menu].visible, true);
 		);
 	</action>
 
@@ -1846,7 +2185,7 @@
 
 	<action name="skin_deeplinking_update_url" scope="local" args="delay">
 		if(skin_settings.deeplinking AND (!webvr OR webvr.isenabled != true) AND global.lpinfo === null,
-			delayedcall(skin_deeplinking_update, calc(delay == null ? 0.1 : delay), skin_deeplinking_update_url_process() );
+		delayedcall(skin_deeplinking_update, calc(delay == null ? 0.1 : delay), skin_deeplinking_update_url_process() );
 		);
 	</action>
 
@@ -1876,13 +2215,13 @@
 	<!-- reload the scene when there is a special image for VR -->
 	<action name="skin_reloadscene_webvr" scope="local">
 		delayedcall(0.1,
-			if(scene[get(xml.scene)].havevrimage,
-				copy(skin_settings.keeplookingdirection_backup, skin_settings.webvr_keeplookingdirection);
-				set(skin_settings.webvr_keeplookingdirection, true);
-				loadscene(get(xml.scene), null, MERGE|KEEPVIEW|KEEPMOVING|KEEPPLUGINS|KEEPHOTSPOTS, BLEND(0.5));
-				copy(skin_settings.webvr_keeplookingdirection, skin_settings.keeplookingdirection_backup);
-				delete(skin_settings.keeplookingdirection_backup);
-			);
+		if(scene[get(xml.scene)].havevrimage,
+		copy(skin_settings.keeplookingdirection_backup, skin_settings.webvr_keeplookingdirection);
+		set(skin_settings.webvr_keeplookingdirection, true);
+		loadscene(get(xml.scene), null, MERGE|KEEPVIEW|KEEPMOVING|KEEPPLUGINS|KEEPHOTSPOTS, BLEND(0.5));
+		copy(skin_settings.webvr_keeplookingdirection, skin_settings.keeplookingdirection_backup);
+		delete(skin_settings.keeplookingdirection_backup);
+		);
 		);
 	</action>
 
@@ -1897,9 +2236,9 @@
 		set(plugin[video].onvideocomplete, skin_video_updatestate() );
 
 		if(plugin[video].ispaused AND plugin[video].pausedonstart,
-			set(layer[skin_video_playpause].state, 'visible');
-			set(layer[skin_video_playpause].enabled, true);
-			tween(layer[skin_video_playpause].alpha, 1.0);
+		set(layer[skin_video_playpause].state, 'visible');
+		set(layer[skin_video_playpause].enabled, true);
+		tween(layer[skin_video_playpause].alpha, 1.0);
 		);
 
 		delayedcall(skin_video_delayedvisible, 0.25, set(layer[skin_video_controls].visible, true) );
@@ -1941,22 +2280,22 @@
 
 	<action name="skin_video_updateseekbarwidth">
 		if(skin_settings.title,
-			calc(layer[skin_video_seekbar_container].width, 0 - (32 + layer[skin_title].pixelwidth + layer[skin_video_time].pixelwidth));
-			calc(layer[skin_video_seekbar_container].x, layer[skin_title].pixelwidth + 16);
-		  ,
-			calc(layer[skin_video_seekbar_container].width, 0 - (24 + layer[skin_video_time].pixelwidth));
-			set(layer[skin_video_seekbar_container].x, 8);
+		calc(layer[skin_video_seekbar_container].width, 0 - (32 + layer[skin_title].pixelwidth + layer[skin_video_time].pixelwidth));
+		calc(layer[skin_video_seekbar_container].x, layer[skin_title].pixelwidth + 16);
+		,
+		calc(layer[skin_video_seekbar_container].width, 0 - (24 + layer[skin_video_time].pixelwidth));
+		set(layer[skin_video_seekbar_container].x, 8);
 		);
 	</action>
 
 	<action name="skin_video_ondownseeking" scope="local">
 		asyncloop(caller.pressed,
-			screentolayer(skin_video_seekbar, mouse.stagex,mouse.stagey, lx,ly);
-			calc(seekpos, lx / layer[skin_video_seekbar].pixelwidth);
-			clamp(seekpos, 0.0, 1.0);
-			skin_video_updatetime(get(seekpos));
-		  ,
-			plugin[video].seek(calc((seekpos * 100) + '%'));
+		screentolayer(skin_video_seekbar, mouse.stagex,mouse.stagey, lx,ly);
+		calc(seekpos, lx / layer[skin_video_seekbar].pixelwidth);
+		clamp(seekpos, 0.0, 1.0);
+		skin_video_updatetime(get(seekpos));
+		,
+		plugin[video].seek(calc((seekpos * 100) + '%'));
 		);
 	</action>
 
@@ -1970,21 +2309,21 @@
 	<action name="skin_video_updatestate">
 		calc(layer[skin_video_playpause].crop, plugin[video].ispaused ? '0|640|64|64' : '64|640|64|64');
 		if(plugin[video].iscomplete,
-			set(layer[skin_video_playpause].state, 'visible');
-			tween(layer[skin_video_playpause].alpha, 1.0);
+		set(layer[skin_video_playpause].state, 'visible');
+		tween(layer[skin_video_playpause].alpha, 1.0);
 		);
 	</action>
 
 	<action name="skin_video_playpause_click">
 		if(plugin[video].ispaused,
-			plugin[video].play();
-			set(layer[skin_video_playpause].state, 'hidden');
-			tween(layer[skin_video_playpause].alpha, 0.0);
-		  ,
-			plugin[video].pause();
-			set(layer[skin_video_playpause].state, 'visible');
-			tween(layer[skin_video_playpause].alpha, 1.0);
-			delayedcall(autohide_pp, 2.0, set(layer[skin_video_playpause].state,'hidden'); tween(layer[skin_video_playpause].alpha, 0.0); );
+		plugin[video].play();
+		set(layer[skin_video_playpause].state, 'hidden');
+		tween(layer[skin_video_playpause].alpha, 0.0);
+		,
+		plugin[video].pause();
+		set(layer[skin_video_playpause].state, 'visible');
+		tween(layer[skin_video_playpause].alpha, 1.0);
+		delayedcall(autohide_pp, 2.0, set(layer[skin_video_playpause].state,'hidden'); tween(layer[skin_video_playpause].alpha, 0.0); );
 		);
 	</action>
 
@@ -1994,14 +2333,14 @@
 		switch(layer[skin_video_playpause].state, 'visible', 'hidden');
 
 		if(layer[skin_video_playpause].state == 'hidden',
-			tween(layer[skin_video_playpause].alpha, 0.0);
-		  ,
-			tween(layer[skin_video_playpause].alpha, 1.0);
-			delayedcall(autohide_pp, 2.0, set(layer[skin_video_playpause].state,'hidden'); tween(layer[skin_video_playpause].alpha, 0.0); );
+		tween(layer[skin_video_playpause].alpha, 0.0);
+		,
+		tween(layer[skin_video_playpause].alpha, 1.0);
+		delayedcall(autohide_pp, 2.0, set(layer[skin_video_playpause].state,'hidden'); tween(layer[skin_video_playpause].alpha, 0.0); );
 		);
 	</action>
-	
-	
+
+
 	<!-- autotour/autoplay support -->
 	<autorotate enabled="calc:skin_settings.autotour == true"
 	            waittime="5.0"
@@ -2010,19 +2349,19 @@
 	            tofov="120"
 	            oneroundrange="360"
 	            />
-	
+
 	<events name="skin_autotour" keep="true"
 		onautorotatestart="if(skin_settings.autotour, skin_autotour_start(); );"
 		onautorotatestop="if(skin_settings.autotour, skin_autotour_stop(); );"
 		/>
-	
+
 	<action name="skin_autotour_start" scope="PRIVATE:skin_autotour">
 		copy(loadscene_flags_backup, global.skin_settings.loadscene_flags);
 		set(global.skin_settings.loadscene_flags, MERGE|KEEPVIEW|KEEPMOVING|PRELOAD);
 		copy(loadscene_blend_next_backup, global.skin_settings.loadscene_blend_next);
 		set(global.skin_settings.loadscene_blend_next, SLIDEBLEND(2.0, 0, 0.75, linear) );
 	</action>
-	
+
 	<action name="skin_autotour_stop" scope="PRIVATE:skin_autotour">
 		copy(global.skin_settings.loadscene_flags, loadscene_flags_backup);
 		copy(global.skin_settings.loadscene_blend_next, loadscene_blend_next_backup);
@@ -2043,23 +2382,23 @@
 		<item name="sa" caption="Start Autotour"     onclick="autorotate.start();" separator="both" showif="autorotate.isrotating == false" visible="calc:skin_settings.autotour == true" />
 		<item name="ta" caption="Stop Autotour"      onclick="autorotate.stop();"  separator="both" showif="autorotate.isrotating == true"  visible="calc:skin_settings.autotour == true" />
 	</contextmenu>
-	
+
 	<events name="skin_contextmenu" keep="true"
 		oncontextmenu="skin_update_contextmenu();"
 		/>
-	
+
 	<action name="skin_update_contextmenu">
 		contextmenu.item[cm].caption = 'Control Mode: ' +
-			'[a href=[sq]krpano:set(control.mode,drag);[sq]   style=[sq]color:inherit;text-decoration:' + (control.mode == 'drag'   ? 'underline' : 'none') + ';[sq]]Drag[/a] | ' +
-			'[a href=[sq]krpano:set(control.mode,follow);[sq] style=[sq]color:inherit;text-decoration:' + (control.mode == 'follow' ? 'underline' : 'none') + ';[sq]]Follow[/a] | ' +
-			'[a href=[sq]krpano:set(control.mode,moveto);[sq] style=[sq]color:inherit;text-decoration:' + (control.mode == 'moveto' ? 'underline' : 'none') + ';[sq]]MoveTo[/a]';
+		'[a href=[sq]krpano:set(control.mode,drag);[sq]   style=[sq]color:inherit;text-decoration:' + (control.mode == 'drag'   ? 'underline' : 'none') + ';[sq]]Drag[/a] | ' +
+		'[a href=[sq]krpano:set(control.mode,follow);[sq] style=[sq]color:inherit;text-decoration:' + (control.mode == 'follow' ? 'underline' : 'none') + ';[sq]]Follow[/a] | ' +
+		'[a href=[sq]krpano:set(control.mode,moveto);[sq] style=[sq]color:inherit;text-decoration:' + (control.mode == 'moveto' ? 'underline' : 'none') + ';[sq]]MoveTo[/a]';
 	</action>
 
 
 	<action name="skin_view_look_straight">
 		if(view.vlookat LT -80 OR view.vlookat GT +80,
-			tween(view.vlookat, 0.0, 1.0, easeInOutSine);
-			tween(view.fov,     100, distance(150,0.8));
+		tween(view.vlookat, 0.0, 1.0, easeInOutSine);
+		tween(view.fov,     100, distance(150,0.8));
 		);
 		skin_deeplinking_update_url(1.0);
 	</action>
@@ -2097,7 +2436,7 @@
 		tween(view.architectural, 0.0, distance(1.0,0.5));
 		tween(view.pannini,       1.0, distance(1.0,0.8));
 		if(view.distortion LT 0.1,
-			tween(view.distortion, 1.0, distance(1.0,0.8));
+		tween(view.distortion, 1.0, distance(1.0,0.8));
 		);
 	</action>
 
@@ -2110,60 +2449,60 @@
 		tween(view.hlookat, calc(view.hlookat + 100.0 + 45.0*random), distance(100,0.8));
 		skin_deeplinking_update_url(1.0);
 	</action>
-	
-	
+
+
 	<action name="skin_followmouse_init" scope="private:skinfollowmouse" autorun="onstart" devices="desktop.and.no-touch">
 		if(global.skin_settings.followmousecontrol,
-			set(followspeed, 0.05);
-			set(followrange, 10);
-			set(followfactor, 1.0);
-			set(track_ry, 0);
-			set(track_rx, 0);
-			set(global.events[skin_followmouse].keep, true);
-			set(global.events[skin_followmouse].onviewchanged, set(global.view.haschanged,true); );
-			set(global.events[skin_followmouse].onviewchange, skin_followmouse_onviewchange() );
-			set(global.events[skin_followmouse].onmousedown, scope(private:skinfollowmouse, stopdelayedcall(followmouse_reenable); tween(followfactor,0.0,0.2); ); );
-			set(global.events[skin_followmouse].onmouseup, scope(private:skinfollowmouse, delayedcall(followmouse_reenable, 1.0, tween(followfactor,1.0,3.0) ); ); );
-		  );
-	</action>
-	
-	<action name="skin_followmouse_onviewchange" scope="private:skinfollowmouse">
-		if(global.mouse.x != 0 AND global.mouse.y != 0,
-			Math.tan(zoomscale, calc(global.view.vfov * 0.5 * Math.PI / 180.0));
-			calc(zoomscale, 1.0 / zoomscale);
-			Math.max(zoomscale, 1.0);
-			calc(new_ry, followfactor/zoomscale * followrange * (global.mouse.x / global.stagewidth - 0.5));
-			calc(new_rx, followfactor/zoomscale * followrange * (global.mouse.y / global.stageheight - 0.5));
-			calc(track_ry, track_ry*(1.0-followspeed) + new_ry*followspeed);
-			calc(track_rx, track_rx*(1.0-followspeed) + new_rx*followspeed);
-			copy(global.view.ry, track_ry);
-			copy(global.view.rx, track_rx);
+		set(followspeed, 0.05);
+		set(followrange, 10);
+		set(followfactor, 1.0);
+		set(track_ry, 0);
+		set(track_rx, 0);
+		set(global.events[skin_followmouse].keep, true);
+		set(global.events[skin_followmouse].onviewchanged, set(global.view.haschanged,true); );
+		set(global.events[skin_followmouse].onviewchange, skin_followmouse_onviewchange() );
+		set(global.events[skin_followmouse].onmousedown, scope(private:skinfollowmouse, stopdelayedcall(followmouse_reenable); tween(followfactor,0.0,0.2); ); );
+		set(global.events[skin_followmouse].onmouseup, scope(private:skinfollowmouse, delayedcall(followmouse_reenable, 1.0, tween(followfactor,1.0,3.0) ); ); );
 		);
 	</action>
-	
-	
-	
+
+	<action name="skin_followmouse_onviewchange" scope="private:skinfollowmouse">
+		if(global.mouse.x != 0 AND global.mouse.y != 0,
+		Math.tan(zoomscale, calc(global.view.vfov * 0.5 * Math.PI / 180.0));
+		calc(zoomscale, 1.0 / zoomscale);
+		Math.max(zoomscale, 1.0);
+		calc(new_ry, followfactor/zoomscale * followrange * (global.mouse.x / global.stagewidth - 0.5));
+		calc(new_rx, followfactor/zoomscale * followrange * (global.mouse.y / global.stageheight - 0.5));
+		calc(track_ry, track_ry*(1.0-followspeed) + new_ry*followspeed);
+		calc(track_rx, track_rx*(1.0-followspeed) + new_rx*followspeed);
+		copy(global.view.ry, track_ry);
+		copy(global.view.rx, track_rx);
+		);
+	</action>
+
+
+
 	<!-- A helper script for getting into fullscreen mode on the iPhone. -->
-	
+
 	<events name="iphone_fullscreen_swipe" keep="true" devices="iphone"
 			oniphonefullscreen="iphone_fullscreen_swipe();"
 			/>
-		
+
 	<action name="iphone_fullscreen_swipe" scope="localonly">
 		if(global.display.iphonefullscreen GT 0,
-			if(!global.layer[iphone_fullscreen_info],
-				addlayer('iphone_fullscreen_info', infolayer);
-				set(infolayer, type=text, css='color:#FFFFFF; font-size:26px; font-weight:bold; text-align:center;', txtshadow='0 0 8 0x000000 1', bgcolor=0x000000, bgalpha=0.7, bgcapture=true, align=lefttop, x=0, y=0, width=100%, height=100%, vcenter=true, keep=true, zorder=9999, safearea=false);
-				if(global.display.iphonefullscreen == 1,
-					set(infolayer.html, '[span style="font-size:60px;"]⇡[/span][br]Swipe Up');
-				  ,
-					set(infolayer.html, '[span style="font-size:60px;"]⇣ ⇡[/span][br]Swipe Down and Up');
-				);
-			);
-		  ,
-			removelayer('iphone_fullscreen_info');
+		if(!global.layer[iphone_fullscreen_info],
+		addlayer('iphone_fullscreen_info', infolayer);
+		set(infolayer, type=text, css='color:#FFFFFF; font-size:26px; font-weight:bold; text-align:center;', txtshadow='0 0 8 0x000000 1', bgcolor=0x000000, bgalpha=0.7, bgcapture=true, align=lefttop, x=0, y=0, width=100%, height=100%, vcenter=true, keep=true, zorder=9999, safearea=false);
+		if(global.display.iphonefullscreen == 1,
+		set(infolayer.html, '[span style="font-size:60px;"]⇡[/span][br]Swipe Up');
+		,
+		set(infolayer.html, '[span style="font-size:60px;"]⇣ ⇡[/span][br]Swipe Down and Up');
+		);
+		);
+		,
+		removelayer('iphone_fullscreen_info');
 		);
 	</action>
-	
+
 
 </krpano>
